@@ -14,12 +14,11 @@ Files were obtained from the Calinou/kenney-interface-sounds packaging, commit `
 
 | File | Use |
 | --- | --- |
-| `click_001.wav` | Slide and mode selection |
-| `drop_001.wav` | Merge |
-| `pluck_001.wav` | Large merge |
-| `back_001.wav` | Undo |
-| `open_001.wav` | Hint |
-| `confirmation_001.wav` | New run and goal reached |
+| `select_007.wav` | Quiet merge |
+| `select_008.wav` | Large merge |
+| `click_005.wav` | Undo |
+| `tick_002.wav` | Hint |
+| `bong_001.wav` | New run and goal reached |
 
 ## AppWatch theme system
 

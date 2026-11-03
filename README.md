@@ -18,11 +18,13 @@ This repo started in November 2024 as a small 2048 experiment—the first reposi
 | **Tiny** | 3×3, target 512, with the option to keep going. |
 | **Sprint** | Score as much as possible in 50 valid moves. |
 | **Player vs CPU** | Each valid player move gives the CPU one turn. |
-| **CPU vs CPU** | Watch two local CPUs play with independent difficulty settings. |
+| **CPU vs CPU** | Watch two local CPUs play with independent random boards, tile spawns, and difficulty settings. |
 
-In both CPU modes, boards start from the same seed and use the same tile rules. A blocked board stops while the other continues. The match ends when both boards are blocked; the higher score wins, with top tile breaking score ties. CPU matches continue beyond 2048.
+Player vs CPU uses a matched starting seed for fairness. CPU vs CPU draws a separate random starting board and spawn sequence for each side, even when both use Insane. Each board has its own score, personal best, top tile, move count, and thinking indicator. Personal bests stay separate for A, B, and the player. Both modes use the same tile rules. A blocked board stops while the other continues. The match ends when both boards are blocked; the higher score wins, with top tile breaking score ties. CPU matches continue beyond 2048.
 
 Pause/resume, elapsed time, and spectating speeds are built in. Hidden tabs automatically pause CPU matches. Saved matches retain both boards, settings, and elapsed active time.
+
+Every board displays its starting seed, which can be clicked to copy. Seeds stay fixed during a run and survive reloads and undo. New arena matches use two fresh, different seeds; other new games draw a fresh seed except Daily, which keeps its UTC date seed. Older solo saves recover their starting seed without losing progress. The first update of an old shared-seed arena starts an independent match, preserves both personal bests, and keeps the previous match snapshot locally.
 
 ![Local CPU versus CPU match](docs/arena.jpg)
 
@@ -36,6 +38,8 @@ Pause/resume, elapsed time, and spectating speeds are built in. Hidden tabs auto
 | **Insane** | Uses a deeper search and a larger CPU budget. |
 
 CPU decisions use fixed board heuristics and bounded expectimax search. They run in a Web Worker, with a yielding fallback where workers are unavailable. Move choices leave the board and its random sequence untouched until a legal move is applied.
+
+In Player vs CPU, planning overlaps the player's tile animation. There is no artificial thinking delay before the CPU responds.
 
 ## Controls and assistance
 
@@ -55,10 +59,12 @@ Undo and hint counts survive reloads and mode switches. Undo does not refund eit
 
 - Gray Dark, Light, and MS Paint themes adapted from [AppWatch](https://github.com/DawsonCodes/AppWatch).
 - AppWatch’s Octocat source link, plus a new matching game logo and favicon.
-- A blue/pink rim that sweeps, slows to a stop, and pauses before repeating on hovered, keyboard-focused, and selected controls.
+- A blue/pink rim that rotates continuously and smoothly on hovered, keyboard-focused, and selected controls.
 - A red Undo button with a short rewind animation.
-- Smooth slides, merge pops, theme reveals, and reduced-motion support.
-- Optional local WAV samples by Kenney for slides, merges, large tiles, undo, hints, and confirmations. Sound starts off.
+- Custom difficulty and speed menus with animated arrows, keyboard navigation, and the active theme.
+- Smooth slides, merge pops, animated stats, theme reveals, and reduced-motion support.
+- Tile-value progress: 1,024 is 50% of 2,048, with a clear next target after reaching it.
+- Quiet local WAV samples by Kenney for merges, large tiles, undo, hints, and confirmations. Sound starts off; an adjustable volume control starts at 25%. Short fades, a low-pass filter, a limiter, and a two-voice cap keep playback gentle. Ordinary slide moves are silent.
 
 All preferences and saves use `2048-remix:` storage keys. AppWatch and RPS-Robot were inspected as references; only this repository was edited.
 
@@ -93,6 +99,7 @@ Tests cover merging, scoring, invalid moves, win/loss states, assistance budgets
 | `cpu-ai.js` | Fixed CPU evaluation and difficulty-dependent search |
 | `cpu.js`, `cpu-worker.js` | Local worker transport and fallback |
 | `audio.js`, `assets/audio/` | Sample playback and original CC0 audio license |
+| `select.js` | Theme-aware accessible difficulty and speed menus |
 | `themes.css`, `theme-init.js` | AppWatch palette tokens and first-paint theme resolution |
 | `styles.css` | Layout, tile colors, selection rims, and motion |
 | `tests/` | Dependency-free Node tests |

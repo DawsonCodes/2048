@@ -8,7 +8,7 @@
     <meta property="og:title" content="2048 Remix · by Dawson">
     <meta property="og:description" content="Play Classic, Daily, Zen, Tiny, Sprint, Player vs CPU, or CPU vs CPU in your browser.">
     <title>2048 Remix · by Dawson</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
     <script src="theme-init.js"></script>
     <link rel="stylesheet" href="themes.css">
     <link rel="stylesheet" href="styles.css">
@@ -16,6 +16,7 @@
     <script src="audio.js" defer></script>
     <script src="cpu-ai.js" defer></script>
     <script src="cpu.js" defer></script>
+    <script src="select.js" defer></script>
     <script src="script.js" defer></script>
   </head>
   <body>
@@ -39,6 +40,7 @@
         <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 3h8v7a4 4 0 0 1-8 0V3Zm0 2H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4m-4 2v7m-4 0h8"/></symbol>
         <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
         <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-12h-7l0-8Z"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
       </defs>
     </svg>
 
@@ -84,10 +86,11 @@
       <section class="duel-toolbar" id="duel-toolbar" aria-label="CPU match controls" hidden>
         <div class="duel-state"><strong id="duel-title">Player vs CPU</strong><span id="duel-status" role="status">Your turn</span><span id="duel-elapsed">00:00</span></div>
         <div class="duel-options">
-          <label id="cpu-left-setting" hidden>CPU A<select id="cpu-left-level" aria-label="CPU A difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard" selected>Hard</option><option value="insane">Insane</option></select></label>
-          <label><span id="cpu-right-label">CPU</span><select id="cpu-right-level" aria-label="CPU difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="insane">Insane</option></select></label>
-          <label id="cpu-speed-setting">Speed<select id="cpu-speed" aria-label="CPU match speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+          <div class="cpu-setting" id="cpu-left-setting" hidden><span>CPU A</span><select id="cpu-left-level" aria-label="CPU A difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard" selected>Hard</option><option value="insane">Insane</option></select></div>
+          <div class="cpu-setting"><span id="cpu-right-label">CPU</span><select id="cpu-right-level" aria-label="CPU difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="insane">Insane</option></select></div>
+          <div class="cpu-setting" id="cpu-speed-setting"><span>Speed</span><select id="cpu-speed" aria-label="CPU match speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select></div>
           <button class="button button-subtle" id="cpu-pause" type="button">Pause</button>
+          <button class="button button-primary" id="duel-new-game" type="button"><svg class="icon"><use href="#i-reset"/></svg>New game</button>
         </div>
       </section>
       <div class="game-layout">
@@ -97,11 +100,12 @@
               <div class="score-card score-card-current"><span class="eyebrow" id="player-score-label">Score</span><span class="score-value" id="score">0</span><span class="score-add" id="score-add" aria-hidden="true"></span></div>
               <div class="score-card"><span class="eyebrow"><svg class="icon tiny"><use href="#i-trophy"/></svg><span><span class="best-prefix">Personal </span>best</span></span><span class="score-value" id="best">0</span></div>
             </div>
+            <div class="duel-board-metrics" id="player-metrics" hidden><div class="board-metric"><span class="eyebrow">Top tile</span><strong class="score-value" id="player-top">2</strong></div><div class="board-metric"><span class="eyebrow">Moves</span><strong class="score-value" id="player-moves">0</strong></div></div>
             <button class="button button-primary new-game" id="new-game" type="button" title="New game (R)"><svg class="icon"><use href="#i-reset"/></svg><span>New game</span></button>
           </div>
 
           <div class="board-shell">
-            <div class="board-topline"><span id="board-caption">CLASSIC · 4 × 4</span><span class="board-status" id="board-status" hidden></span></div>
+            <div class="board-topline"><span id="board-caption">CLASSIC · 4 × 4</span><span class="board-status" id="board-status" hidden></span><span class="cpu-thinking" id="cpu-left-thinking" role="status" hidden>Thinking<span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr-only">…</span></span></div>
             <div class="game-board" id="game-board" tabindex="0" role="group" aria-label="2048 game board. Use arrow keys or W A S D to move.">
               <div class="board-field" id="board-field">
                 <div class="board-grid" id="board-grid" role="grid" aria-label="2048 tiles"></div>
@@ -112,8 +116,9 @@
                 <div class="overlay-card"><span class="overlay-icon" id="overlay-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><p class="eyebrow" id="overlay-kicker">TARGET REACHED</p><h2 id="overlay-title">2048 reached</h2><p id="overlay-copy">0 points</p><button class="button button-primary" id="overlay-primary" type="button">Keep going <span aria-hidden="true">↗</span></button><button class="text-button" id="overlay-secondary" type="button">New game</button></div>
               </div>
             </div>
-            <div class="board-bottomline"><span id="board-message"></span><span class="keyboard-note">← ↑ ↓ → <span>or WASD</span></span></div>
+            <div class="board-bottomline"><button class="seed-tag" id="board-seed" type="button" title="Copy starting seed"><span>Seed</span><span id="seed-value">—</span><svg class="icon"><use href="#i-copy"/></svg></button><span id="board-message"></span><span class="keyboard-note">← ↑ ↓ → <span>or WASD</span></span></div>
           </div>
+          <div class="sound-settings" id="sound-settings" hidden><label for="sound-volume">Volume</label><input id="sound-volume" type="range" min="0" max="100" step="5" value="25" aria-label="Sound volume"><output id="sound-volume-value" for="sound-volume">25%</output></div>
 
           <div class="game-tools">
             <div class="tool-group" id="assistance-tools"><button class="button button-undo" id="undo" type="button" disabled title="Undo last move (U)"><svg class="icon"><use href="#i-undo"/></svg>Undo<span class="tool-count" id="undos-left">3</span></button><button class="button button-subtle" id="hint" type="button" title="Get a hint (H)"><svg class="icon"><use href="#i-spark"/></svg>Hint<span class="tool-count" id="hints-left">3</span></button></div>
@@ -123,8 +128,8 @@
         </section>
 
         <section class="opponent-panel" id="opponent-panel" aria-labelledby="opponent-name" hidden>
-          <div class="opponent-scorebar"><div><span class="eyebrow" id="opponent-name">CPU</span><strong id="opponent-score">0</strong></div><div><span class="eyebrow">Top tile</span><strong id="opponent-top">2</strong></div><div><span class="eyebrow">Moves</span><strong id="opponent-moves">0</strong></div></div>
-          <div class="board-shell"><div class="board-topline"><span id="opponent-caption">CPU · NORMAL</span><span id="cpu-thinking" hidden>Thinking…</span></div><div class="game-board cpu-board" id="opponent-board"><div class="board-field"><div class="board-grid" id="opponent-grid" role="grid" aria-label="CPU tiles"></div><div class="tile-layer" id="opponent-layer" aria-hidden="true"></div></div></div><div class="board-bottomline"><span id="opponent-state">Ready</span></div></div>
+          <div class="scorebar opponent-scorebar"><div class="score-cards"><div class="score-card score-card-current"><span class="eyebrow" id="opponent-name">CPU</span><strong class="score-value" id="opponent-score">0</strong></div><div class="score-card"><span class="eyebrow"><svg class="icon tiny"><use href="#i-trophy"/></svg><span><span class="best-prefix">Personal </span>best</span></span><strong class="score-value" id="opponent-best">0</strong></div></div><div class="duel-board-metrics"><div class="board-metric"><span class="eyebrow">Top tile</span><strong class="score-value" id="opponent-top">2</strong></div><div class="board-metric"><span class="eyebrow">Moves</span><strong class="score-value" id="opponent-moves">0</strong></div></div></div>
+          <div class="board-shell"><div class="board-topline"><span id="opponent-caption">CPU · NORMAL</span><span class="cpu-thinking" id="cpu-thinking" role="status" hidden>Thinking<span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr-only">…</span></span></div><div class="game-board cpu-board" id="opponent-board"><div class="board-field"><div class="board-grid" id="opponent-grid" role="grid" aria-label="CPU tiles"></div><div class="tile-layer" id="opponent-layer" aria-hidden="true"></div></div></div><div class="board-bottomline"><button class="seed-tag" id="opponent-seed" type="button" title="Copy CPU starting seed"><span>Seed</span><span id="opponent-seed-value">—</span><svg class="icon"><use href="#i-copy"/></svg></button><span id="opponent-state">Ready</span></div></div>
         </section>
         <aside class="sidebar" aria-label="Game modes and progress">
           <section class="mode-section" aria-labelledby="mode-heading">
@@ -140,12 +145,10 @@
             </div>
           </section>
 
-          <section class="run-panel" aria-labelledby="run-heading">
+          <section class="run-panel" id="run-panel" aria-labelledby="run-heading">
             <div class="section-heading"><h2 id="run-heading">Stats</h2><svg class="icon tiny"><use href="#i-bolt"/></svg></div>
-            <div class="run-stats"><div><span class="eyebrow">Top tile</span><strong id="top-tile">2</strong></div><div><span class="eyebrow" id="moves-label">Moves</span><strong id="moves">0</strong></div><div><span class="eyebrow">To reach</span><strong class="goal-number" id="target">2048</strong></div></div>
-            <div class="goal-label"><span id="goal-copy">2 / 2048</span><span id="goal-percent">9%</span></div>
-            <div class="goal-track" id="goal-progress" role="progressbar" aria-label="Highest tile progress toward 2048" aria-valuemin="0" aria-valuemax="100" aria-valuenow="9"><span id="goal-fill"></span></div>
-            <div class="milestones" aria-label="Tile milestones"><span data-milestone="8">8</span><span data-milestone="32">32</span><span data-milestone="128">128</span><span data-milestone="512">512</span><span data-milestone="2048">2048 <svg class="icon"><use href="#i-spark"/></svg></span></div>
+            <div class="run-stats"><div><span class="eyebrow">Top tile</span><strong id="top-tile">2</strong></div><div><span class="eyebrow" id="moves-label">Moves</span><strong id="moves">0</strong></div></div>
+            <div class="tile-goal"><div class="goal-heading"><span class="eyebrow">Next target</span><strong id="target">2,048</strong></div><div class="goal-track" id="goal-progress" role="progressbar" aria-label="Highest tile progress toward 2048" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0.1"><span id="goal-fill"></span></div><div class="goal-label"><span id="goal-copy">2 of 2,048</span><span id="goal-percent">0.1%</span></div></div>
           </section>
 
           <section class="how-panel" aria-labelledby="how-heading"><h2 id="how-heading">How to play</h2><div class="mini-merge" aria-hidden="true"><span>2</span><i>+</i><span>2</span><svg class="icon"><use href="#i-arrow"/></svg><span class="mini-result">4</span></div><p>Arrow keys · WASD · swipe</p></section>

@@ -36,6 +36,28 @@
     return cells;
   }
 
+  // Recover a legacy run's starting seed in logarithmic time.
+  function initialSeed(rng, moves) {
+    const inverse = (seed) => {
+      let value = seed ^ (seed << 5) ^ (seed << 10) ^ (seed << 15) ^ (seed << 20) ^ (seed << 25) ^ (seed << 30);
+      value ^= value >>> 17;
+      return (value ^ (value << 13) ^ (value << 26)) >>> 0;
+    };
+    const apply = (matrix, value) => {
+      let result = 0;
+      for (let bit = 0; bit < 32; bit++) if ((value >>> bit) & 1) result ^= matrix[bit];
+      return result >>> 0;
+    };
+    let matrix = Array.from({ length: 32 }, (_, bit) => inverse(1 << bit));
+    let steps = BigInt(moves) * 2n + 4n, result = rng;
+    while (steps > 0n) {
+      if (steps & 1n) result = apply(matrix, result);
+      steps >>= 1n;
+      if (steps) matrix = matrix.map((value) => apply(matrix, value));
+    }
+    return result;
+  }
+
   function spawnTile(board, seed) {
     const copy = cloneBoard(board);
     const empty = emptyCells(copy);
@@ -50,9 +72,23 @@
   function createGame(mode = 'classic', date = utcDate(), seed = 1) {
     if (!Object.hasOwn(MODES, mode)) throw new Error('Unknown game mode');
     const size = MODES[mode];
-    const first = spawnTile(Array.from({ length: size }, () => Array(size).fill(0)), mode === 'daily' ? seedFrom('2048-remix:' + date) : seed);
+    const startingSeed = mode === 'daily' ? seedFrom('2048-remix:' + date) : seed >>> 0 || 1;
+    const first = spawnTile(Array.from({ length: size }, () => Array(size).fill(0)), startingSeed);
     const second = spawnTile(first.board, first.seed);
-    return { version: 1, mode, size, date: mode === 'daily' ? date : null, board: second.board, rng: second.seed, score: 0, moves: 0, won: false, continued: false, undosUsed: 0, hintsUsed: 0 };
+    return { version: 1, mode, size, date: mode === 'daily' ? date : null, board: second.board, rng: second.seed, seed: startingSeed, score: 0, moves: 0, won: false, continued: false, undosUsed: 0, hintsUsed: 0 };
+  }
+
+  function createMatch(mode, seedA = 1, seedB = 2, date = utcDate()) {
+    if (mode !== 'arena' && mode !== 'versus') throw new Error('Unknown match mode');
+    const left = createGame(mode, date, seedA);
+    let right = createGame(mode, date, mode === 'versus' ? seedA : seedB);
+    // Even an accidental seed or starting-layout collision gets a fresh draw.
+    if (mode === 'arena') {
+      while (right.rng === left.rng || JSON.stringify(right.board) === JSON.stringify(left.board)) {
+        right = createGame(mode, date, randomStep(right.rng).seed);
+      }
+    }
+    return { left, right };
   }
 
   function coordinate(line, offset, direction, size) {
@@ -202,6 +238,12 @@
     return difference > 0 ? 'left' : difference < 0 ? 'right' : 'draw';
   }
 
+  /** Progress uses tile values: a 1024 tile is halfway to a 2048 tile. */
+  function tileProgress(top, goal = 2048) {
+    const target = top >= goal ? top * 2 : goal;
+    return { target, percent: Math.max(0, Math.min(100, top / target * 100)) };
+  }
+
   /** Treat persisted data as untrusted. Return only the supported state fields. */
   function validateState(value, mode, date = utcDate()) {
     if (!value || value.version !== 1 || !Object.hasOwn(MODES, mode) || value.mode !== mode || value.size !== MODES[mode]) return null;
@@ -213,8 +255,10 @@
     const hintsUsed = value.hintsUsed === undefined ? 0 : value.hintsUsed;
     if (![undosUsed, hintsUsed].every((n) => Number.isInteger(n) && n >= 0 && n <= ASSIST_LIMIT)) return null;
     if (moveLimitFor(mode) !== null && value.moves > moveLimitFor(mode)) return null;
-    return { version: 1, mode, size: value.size, date: value.date, board: cloneBoard(value.board), rng: value.rng, score: value.score, moves: value.moves, won: value.won, continued: value.continued, undosUsed, hintsUsed };
+    const seed = value.seed === undefined ? initialSeed(value.rng, value.moves) : value.seed;
+    if (!Number.isInteger(seed) || seed <= 0 || seed > 0xffffffff) return null;
+    return { version: 1, mode, size: value.size, date: value.date, board: cloneBoard(value.board), rng: value.rng, seed, score: value.score, moves: value.moves, won: value.won, continued: value.continued, undosUsed, hintsUsed };
   }
 
-  return Object.freeze({ MODES, ASSIST_LIMIT, goalFor, moveLimitFor, roundOver, undoGame, useHint, DIRECTIONS, cloneBoard, highest, utcDate, seedFrom, randomStep, emptyCells, spawnTile, createGame, moveBoard, canMove, play, hint, cpuDirection, compareRuns, isBoard, validateState });
+  return Object.freeze({ MODES, ASSIST_LIMIT, goalFor, moveLimitFor, roundOver, undoGame, useHint, DIRECTIONS, cloneBoard, highest, utcDate, seedFrom, randomStep, emptyCells, spawnTile, createGame, createMatch, moveBoard, canMove, play, hint, cpuDirection, compareRuns, tileProgress, isBoard, validateState });
 });

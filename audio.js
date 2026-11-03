@@ -1,14 +1,16 @@
-/* Kenney CC0 sample playback. No generated tones or third-party requests. */
+/* Quiet, filtered Kenney CC0 samples, loaded from this site only. */
 (function () {
   'use strict';
   const files = {
-    slide: 'click_001.wav', merge: 'drop_001.wav', milestone: 'pluck_001.wav',
-    undo: 'back_001.wav', hint: 'open_001.wav', confirm: 'confirmation_001.wav'
+    merge: 'select_007.wav', milestone: 'select_008.wav',
+    undo: 'click_005.wav', hint: 'tick_002.wav', confirm: 'bong_001.wav'
   };
-  const levels = { slide: 0.24, merge: 0.42, milestone: 0.38, undo: 0.35, hint: 0.28, confirm: 0.35 };
+  const levels = { merge: 0.5, milestone: 0.5, undo: 0.3, hint: 0.25, confirm: 0.3 };
+  let volume = 0.25, lastMerge = -Infinity;
   let enabled = false;
   let context;
   let output;
+  let tone;
   let loading;
   let failed = false;
   const buffers = new Map();
@@ -22,7 +24,12 @@
         if (!AudioContext) throw new Error('Audio is unavailable');
         context = new AudioContext({ latencyHint: 'interactive' });
         output = context.createGain();
-        output.gain.value = 0.65;
+        output.gain.value = volume * 0.6;
+        tone = context.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 2200; tone.Q.value = 0.6;
+        const limiter = context.createDynamicsCompressor();
+        limiter.threshold.value = -12; limiter.knee.value = 12; limiter.ratio.value = 8;
+        limiter.attack.value = 0.003; limiter.release.value = 0.1;
+        tone.connect(limiter); limiter.connect(output);
         output.connect(context.destination);
       }
       if (context.state === 'suspended') context.resume().catch(() => {});
@@ -31,7 +38,11 @@
           const response = await fetch('assets/audio/' + filename);
           if (!response.ok) throw new Error('Could not load sound: ' + name);
           const buffer = await context.decodeAudioData(await response.arrayBuffer());
-          buffers.set(name, buffer);
+          let peak = 0;
+          for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            for (const sample of buffer.getChannelData(channel)) peak = Math.max(peak, Math.abs(sample));
+          }
+          buffers.set(name, { buffer, normalization: peak > 0 ? 0.8 / peak : 0 });
         })).then(() => {
           if (!buffers.size) throw new Error('No sounds could be decoded');
           return true;
@@ -42,26 +53,41 @@
   }
 
   async function play(name, tile = 4) {
-    if (!enabled || failed) return false;
+    if (failed) return false;
+    if (!enabled || !files[name] || volume === 0) return true;
+    const merge = name === 'merge' || name === 'milestone';
+    if (merge && performance.now() - lastMerge < 170) return true;
+    if (merge) lastMerge = performance.now();
     const ready = await prepare();
     if (!ready || !enabled || !buffers.has(name)) return false;
     try {
-      if (active.size >= 8) {
+      if (active.size >= 2) {
         const oldest = active.values().next().value;
         oldest.stop();
         active.delete(oldest);
       }
       const source = context.createBufferSource();
       const gain = context.createGain();
-      source.buffer = buffers.get(name);
-      source.playbackRate.value = name === 'merge' ? Math.min(1.3, 0.96 + Math.log2(tile) * 0.025) : 1;
-      gain.gain.value = levels[name] || 0.3;
-      source.connect(gain); gain.connect(output);
+      const sample = buffers.get(name);
+      source.buffer = sample.buffer;
+      source.playbackRate.value = merge ? Math.min(1.02, 0.8 + Math.log2(tile) * 0.016) : 0.85;
+      const now = context.currentTime, duration = source.buffer.duration / source.playbackRate.value;
+      const level = levels[name] * sample.normalization;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(level, now + Math.min(0.005, duration * 0.2));
+      gain.gain.setValueAtTime(level, now + duration - Math.min(0.035, duration * 0.4));
+      gain.gain.linearRampToValueAtTime(0, now + duration);
+      source.connect(gain); gain.connect(tone);
       active.add(source);
       source.onended = () => { active.delete(source); source.disconnect(); gain.disconnect(); };
       source.start();
       return true;
     } catch { return false; }
+  }
+
+  function setVolume(value) {
+    volume = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.25;
+    if (output) output.gain.setTargetAtTime(volume * 0.6, context.currentTime, 0.025);
   }
 
   function setEnabled(on) {
@@ -73,5 +99,5 @@
     return Promise.resolve(true);
   }
 
-  window.RemixAudio = Object.freeze({ play, setEnabled });
+  window.RemixAudio = Object.freeze({ play, setEnabled, setVolume });
 })();

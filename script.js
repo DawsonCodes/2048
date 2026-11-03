@@ -14,10 +14,14 @@
   const arrows = { left: '←', right: '→', up: '↑', down: '↓' };
   const themeNames = { 'gray-dark': 'Gray Dark', light: 'Light', 'ms-paint': 'MS Paint' };
   const memory = new Map();
+  const recentSeeds = new Set();
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   let lessMotion = root.dataset.lessMotion === 'true';
   let soundOn = read('sound') === '1';
+  const savedVolume = Number(read('volume') ?? 25);
+  let soundVolume = Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 100 ? savedVolume : 25;
   const audioBank = window.RemixAudio;
+  let selectUI;
   let undoAnimationTimer;
   let state;
   let history = [];
@@ -34,6 +38,7 @@
   let opponent = null;
   let opponentHistory = [];
   let cpuBusy = false, cpuVersion = 0, cpuTimer, cpuPaintTimer, cpuFrame, clockTimer;
+  let cpuThinkingLeft = false, cpuThinkingRight = false;
   let duelPaused = false, duelPending = false, duelElapsed = 0, clockStarted = null;
   let leftLevel = 'hard', rightLevel = 'normal', cpuSpeed = 2;
   let currentMode = read('last-mode');
@@ -49,20 +54,40 @@
   }
   function reduced() { return lessMotion || media.matches; }
   function randomSeed() {
-    if (globalThis.crypto && crypto.getRandomValues) return crypto.getRandomValues(new Uint32Array(1))[0] || 1;
-    return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
+    let seed;
+    do {
+      seed = globalThis.crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] || 1 : ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
+    } while (recentSeeds.has(seed));
+    recentSeeds.add(seed);
+    if (recentSeeds.size > 256) recentSeeds.delete(recentSeeds.values().next().value);
+    return seed;
   }
   function snapshot() { return { ...state, board: E.cloneBoard(state.board) }; }
-  function bestScore() {
-    const saved = Number(read('best:' + currentMode));
-    return Math.max(state.score, Number.isSafeInteger(saved) && saved >= 0 ? saved : 0);
+  function bestKey(side = 'left') {
+    return 'best:' + currentMode + (currentMode === 'arena' ? ':' + (side === 'left' ? 'a' : 'b') : side === 'right' ? ':cpu' : '');
+  }
+  function bestScore(side = 'left') {
+    const stored = read(bestKey(side));
+    const saved = Number(stored ?? (currentMode === 'arena' && side === 'left' ? read('best:arena') : 0));
+    return Math.max(side === 'right' && opponent ? opponent.score : state.score, Number.isSafeInteger(saved) && saved >= 0 ? saved : 0);
+  }
+  function setStat(id, value) {
+    const element = $(id), text = value.toLocaleString();
+    if (element.textContent === text) return;
+    element.textContent = text;
+    if (!reduced() && element.animate && element.getClientRects().length) {
+      element.animate([{ transform: 'translateY(3px)', opacity: .55 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    }
   }
   function save() {
     if (!state) return;
+    recentSeeds.add(state.seed);
+    if (opponent) recentSeeds.add(opponent.seed);
     const payload = { ...state, history };
-    if (isDuel()) Object.assign(payload, { opponent, opponentHistory, duelPaused, duelPending, duelElapsed: elapsedNow(), leftLevel, rightLevel, cpuSpeed });
+    if (isDuel()) Object.assign(payload, { opponent, opponentHistory, duelPaused, duelPending, duelElapsed: elapsedNow(), leftLevel, rightLevel, cpuSpeed, arenaRandomized: currentMode === 'arena' });
     write('game:' + currentMode, JSON.stringify(payload));
-    write('best:' + currentMode, String(bestScore()));
+    write(bestKey(), String(bestScore()));
+    if (isDuel() && opponent) write(bestKey('right'), String(bestScore('right')));
     write('last-mode', currentMode);
   }
   function loadMode(mode) {
@@ -72,16 +97,16 @@
     let saved = null;
     try { saved = JSON.parse(read('game:' + mode)); } catch { /* Recover malformed storage. */ }
     state = E.validateState(saved, mode);
+    if (state) recentSeeds.add(state.seed);
     history = state && Array.isArray(saved.history) ? saved.history.slice(-E.ASSIST_LIMIT).map((entry) => E.validateState(entry, mode)).filter(Boolean) : [];
     opponent = null; opponentHistory = [];
     duelPaused = false; duelPending = false; duelElapsed = 0;
     leftLevel = 'hard'; rightLevel = mode === 'arena' ? 'insane' : 'normal'; cpuSpeed = 2;
     if (isDuel()) {
       opponent = E.validateState(saved && saved.opponent, mode);
+      if (opponent) recentSeeds.add(opponent.seed);
       if (!state || !opponent) {
-        const seed = randomSeed();
-        state = E.createGame(mode, E.utcDate(), seed);
-        opponent = E.createGame(mode, E.utcDate(), seed);
+        ({ left: state, right: opponent } = E.createMatch(mode, randomSeed(), randomSeed()));
         history = [];
       } else {
         opponentHistory = Array.isArray(saved.opponentHistory) ? saved.opponentHistory.slice(-E.ASSIST_LIMIT).map((entry) => E.validateState(entry, mode)).filter(Boolean) : [];
@@ -92,6 +117,12 @@
         if (['easy', 'normal', 'hard', 'insane'].includes(saved.leftLevel)) leftLevel = saved.leftLevel;
         if (['easy', 'normal', 'hard', 'insane'].includes(saved.rightLevel)) rightLevel = saved.rightLevel;
         if ([1, 2, 4, 8].includes(saved.cpuSpeed)) cpuSpeed = saved.cpuSpeed;
+        if (mode === 'arena' && !saved.arenaRandomized) {
+          write('game:arena:previous-shared-seed', JSON.stringify(saved));
+          write(bestKey(), String(bestScore())); write(bestKey('right'), String(bestScore('right')));
+          ({ left: state, right: opponent } = E.createMatch(mode, randomSeed(), randomSeed()));
+          history = []; opponentHistory = []; duelElapsed = 0;
+        }
       }
       if (E.roundOver(state) && E.roundOver(opponent)) duelPaused = true;
     }
@@ -180,33 +211,32 @@
     board.setAttribute('aria-label', currentMode === 'arena' ? 'CPU A 2048 board, played automatically by the CPU.' : '2048 game board. Use arrow keys or W A S D to move.');
     $('duel-toolbar').hidden = !isDuel();
     $('opponent-panel').hidden = !isDuel();
+    $('run-panel').hidden = isDuel();
+    $('player-metrics').hidden = !isDuel();
+    $('new-game').hidden = isDuel();
     $('assistance-tools').hidden = currentMode === 'arena';
     document.querySelector('.touch-controls').hidden = currentMode === 'arena';
     document.querySelector('.keyboard-note').hidden = currentMode === 'arena';
     $('player-score-label').textContent = currentMode === 'arena' ? 'CPU A' : currentMode === 'versus' ? 'You' : 'Score';
-    $('score').textContent = state.score.toLocaleString();
-    $('best').textContent = bestScore().toLocaleString();
+    setStat('score', state.score);
+    setStat('best', bestScore());
+    setStat('player-top', E.highest(state.board));
+    setStat('player-moves', state.moves);
     const limit = E.moveLimitFor(currentMode);
     $('moves-label').textContent = limit === null ? 'Moves' : 'Moves left';
-    $('moves').textContent = (limit === null ? state.moves : Math.max(0, limit - state.moves)).toLocaleString();
+    setStat('moves', limit === null ? state.moves : Math.max(0, limit - state.moves));
     const top = E.highest(state.board);
     const goal = E.goalFor(currentMode);
-    const target = top >= goal ? top * 2 : goal;
-    $('top-tile').textContent = top.toLocaleString();
-    $('target').textContent = String(target);
-    const percent = Math.round(Math.min(1, Math.log2(top) / Math.log2(target)) * 100);
-    $('goal-percent').textContent = percent + '%';
+    const { target, percent } = E.tileProgress(top, goal);
+    setStat('top-tile', top);
+    setStat('target', target);
+    const percentText = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(percent);
+    $('goal-percent').textContent = percentText + '%';
     $('goal-fill').style.width = percent + '%';
-    $('goal-progress').setAttribute('aria-valuenow', percent);
+    $('goal-progress').setAttribute('aria-valuenow', percent.toFixed(1));
     $('goal-progress').setAttribute('aria-label', 'Highest tile progress toward ' + target);
     $('goal-progress').setAttribute('aria-valuetext', top + ' tile, target ' + target);
-    $('goal-copy').textContent = top.toLocaleString() + ' / ' + target.toLocaleString();
-    const milestones = currentMode === 'tiny' ? [4, 16, 64, 256, 512] : [8, 32, 128, 512, 2048];
-    document.querySelectorAll('[data-milestone]').forEach((el, index) => {
-      el.dataset.milestone = milestones[index];
-      el.firstChild.textContent = String(milestones[index]) + (index === 4 ? ' ' : '');
-      el.classList.toggle('is-reached', top >= milestones[index]);
-    });
+    $('goal-copy').textContent = top.toLocaleString() + ' of ' + target.toLocaleString();
     const over = E.roundOver(state);
     const paused = state.won && !state.continued;
     const undosLeft = E.ASSIST_LIMIT - state.undosUsed;
@@ -220,6 +250,8 @@
     $('undo').title = 'Undo (U) · ' + undosLeft + ' of 3 left';
     $('hint').title = 'Hint (H) · ' + hintsLeft + ' of 3 left';
     $('board-caption').textContent = currentMode === 'arena' ? 'CPU A · ' + leftLevel.toUpperCase() : names[currentMode].toUpperCase() + ' · ' + state.size + ' × ' + state.size;
+    $('seed-value').textContent = String(state.seed);
+    $('board-seed').setAttribute('aria-label', 'Copy ' + (currentMode === 'arena' ? 'CPU A' : names[currentMode]) + ' seed ' + state.seed);
     $('board-status').textContent = over ? 'ROUND COMPLETE' : paused ? goal + ' REACHED' : limit !== null ? Math.max(0, limit - state.moves) + ' MOVES LEFT' : '';
     $('board-status').hidden = !$('board-status').textContent;
     $('board-status').classList.toggle('is-over', over);
@@ -304,6 +336,8 @@
     renderGrid();
     busy = true;
     const token = revision;
+    // Plan the CPU turn while the player's tiles are already moving.
+    if (isDuel() && duelPending) cpuStep();
     if (result.gained) {
       $('score-add').textContent = '+' + result.gained.toLocaleString();
       $('score-add').classList.remove('is-active');
@@ -386,9 +420,8 @@
   }
   function newGame() {
     cancelAnimation();
-    const seed = randomSeed();
-    state = E.createGame(currentMode, E.utcDate(), seed);
-    opponent = isDuel() ? E.createGame(currentMode, E.utcDate(), seed) : null;
+    if (isDuel()) ({ left: state, right: opponent } = E.createMatch(currentMode, randomSeed(), randomSeed()));
+    else { state = E.createGame(currentMode, E.utcDate(), randomSeed()); opponent = null; }
     history = []; opponentHistory = [];
     duelPaused = false; duelPending = false; duelElapsed = 0;
     clearHint(); save(); renderAll();
@@ -439,6 +472,9 @@
     transition.finished.catch(() => {}).finally(() => { if (themeTransition === transition) themeTransition = null; });
   }
   function updateSound() {
+    $('sound-settings').hidden = !soundOn;
+    $('sound-volume').value = String(soundVolume);
+    $('sound-volume-value').textContent = soundVolume + '%';
     $('sound-toggle').setAttribute('aria-pressed', String(soundOn));
     $('sound-toggle').setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on');
     $('sound-toggle').title = soundOn ? 'Sound on' : 'Sound off';
@@ -456,6 +492,18 @@
       if (!soundOn) return;
       if (ready) playSound('confirm');
       else { soundOn = false; write('sound', '0'); updateSound(); showToast('Audio is unavailable in this browser.'); }
+    });
+  });
+  $('sound-volume').addEventListener('input', () => {
+    soundVolume = Number($('sound-volume').value);
+    audioBank.setVolume(soundVolume / 100); write('volume', String(soundVolume)); updateSound();
+  });
+  $('duel-new-game').addEventListener('click', requestRestart);
+  [['board-seed', () => state.seed], ['opponent-seed', () => opponent?.seed]].forEach(([id, getSeed]) => {
+    $(id).addEventListener('click', async () => {
+      const seed = getSeed();
+      try { await navigator.clipboard.writeText(String(seed)); showToast('Seed copied: ' + seed); }
+      catch { showToast('Seed: ' + seed); }
     });
   });
   $('overlay-primary').addEventListener('click', () => {
@@ -504,7 +552,7 @@
   $('theme-picker').addEventListener('focusout', () => { setTimeout(() => { if (!$('theme-picker').contains(document.activeElement)) closeMenu(); }, 0); });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Tab') root.dataset.input = 'keyboard';
-    if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest('input, textarea, select, [contenteditable="true"]') || document.querySelector('dialog[open]') || !menu.hidden) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest('input, textarea, select, .select-picker, [contenteditable="true"]') || document.querySelector('dialog[open]') || document.querySelector('.select-picker.is-open') || !menu.hidden) return;
     const key = event.key.toLowerCase();
     const direction = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down' }[key];
     if (direction) {
@@ -566,7 +614,7 @@
   function haltCPU() {
     cpuVersion++;
     clearTimeout(cpuTimer); clearTimeout(cpuPaintTimer); cancelAnimationFrame(cpuFrame);
-    cpuBusy = false;
+    cpuBusy = false; cpuThinkingLeft = false; cpuThinkingRight = false;
     stopCPUClock();
   }
   function renderDuelInfo() {
@@ -579,18 +627,29 @@
     $('cpu-right-label').textContent = currentMode === 'arena' ? 'CPU B' : 'CPU';
     $('cpu-speed-setting').hidden = currentMode !== 'arena' && !E.roundOver(state);
     $('cpu-left-level').value = leftLevel; $('cpu-right-level').value = rightLevel; $('cpu-speed').value = String(cpuSpeed);
+    $('cpu-right-level-trigger').setAttribute('aria-label', currentMode === 'arena' ? 'CPU B difficulty' : 'CPU difficulty');
+    selectUI?.sync();
     $('cpu-pause').textContent = duelPaused ? 'Resume' : 'Pause';
     $('cpu-pause').disabled = done;
-    $('cpu-thinking').hidden = !(cpuBusy || duelPending);
-    $('opponent-panel').setAttribute('aria-busy', String(cpuBusy || duelPending));
+    const leftThinking = currentMode === 'arena' && cpuThinkingLeft && !duelPaused;
+    const rightThinking = (cpuThinkingRight || duelPending) && !duelPaused;
+    $('cpu-left-thinking').hidden = !leftThinking;
+    $('cpu-thinking').hidden = !rightThinking;
+    $('play-panel').setAttribute('aria-busy', String(leftThinking));
+    $('opponent-panel').setAttribute('aria-busy', String(rightThinking));
+    board.dataset.thinking = String(leftThinking);
+    $('opponent-board').dataset.thinking = String(rightThinking);
   }
   function renderOpponent(result = null) {
     if (!isDuel() || !opponent) return;
     $('opponent-name').textContent = currentMode === 'arena' ? 'CPU B' : 'CPU';
-    $('opponent-score').textContent = opponent.score.toLocaleString();
-    $('opponent-top').textContent = E.highest(opponent.board).toLocaleString();
-    $('opponent-moves').textContent = opponent.moves.toLocaleString();
+    setStat('opponent-score', opponent.score);
+    setStat('opponent-best', bestScore('right'));
+    setStat('opponent-top', E.highest(opponent.board));
+    setStat('opponent-moves', opponent.moves);
     $('opponent-caption').textContent = (currentMode === 'arena' ? 'CPU B' : 'CPU') + ' · ' + rightLevel.toUpperCase();
+    $('opponent-seed-value').textContent = String(opponent.seed);
+    $('opponent-seed').setAttribute('aria-label', 'Copy ' + (currentMode === 'arena' ? 'CPU B' : 'CPU') + ' seed ' + opponent.seed);
     $('opponent-state').textContent = E.roundOver(opponent) ? 'Board full' : duelPaused ? 'Paused' : currentMode === 'versus' ? 'One move per player turn' : '';
     renderGridInto(opponent, $('opponent-board'), $('opponent-grid'));
     tilesInto(opponent, $('opponent-layer'), result ? result.merges : [], result ? result.spawn : null);
@@ -634,19 +693,23 @@
     return entries;
   }
   async function cpuStep() {
-    if (!isDuel() || !opponent || duelPaused || document.hidden || busy || cpuBusy) return;
+    if (!isDuel() || !opponent || duelPaused || document.hidden || (busy && currentMode !== 'versus') || cpuBusy) return;
     if (currentMode === 'versus' && !duelPending && !E.roundOver(state)) return;
     if (E.roundOver(state) && E.roundOver(opponent)) return;
     const token = cpuVersion;
-    cpuBusy = true; renderDuelInfo();
+    const leftNeeded = currentMode === 'arena' && !E.roundOver(state);
+    const rightNeeded = !E.roundOver(opponent);
+    const thinkingStarted = performance.now();
+    cpuBusy = true; cpuThinkingLeft = leftNeeded; cpuThinkingRight = rightNeeded; renderDuelInfo();
     try {
-      const leftNeeded = currentMode === 'arena' && !E.roundOver(state);
-      const rightNeeded = !E.roundOver(opponent);
       const [leftDirection, rightDirection] = await Promise.all([
         leftNeeded ? cpu.choose(state.board, leftLevel) : null,
         rightNeeded ? cpu.choose(opponent.board, rightLevel) : null
       ]);
+      const remaining = currentMode === 'arena' ? Math.max(80, 180 / cpuSpeed) - (performance.now() - thinkingStarted) : 0;
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
       if (token !== cpuVersion || duelPaused || document.hidden) return;
+      cpuThinkingLeft = false; cpuThinkingRight = false;
       let leftResult = null, rightResult = null;
       if (leftDirection) {
         leftResult = E.play(state, leftDirection); state = leftResult.state;
@@ -658,7 +721,7 @@
       save(); renderGrid(); renderInfo(); renderOpponent();
       const finish = () => {
         if (token !== cpuVersion) return;
-        renderTiles(leftResult ? leftResult.merges : [], leftResult ? leftResult.spawn : null);
+        if (leftResult) renderTiles(leftResult.merges, leftResult.spawn);
         renderOpponent(rightResult); renderOverlay();
         cpuBusy = false;
         if (E.roundOver(state) && E.roundOver(opponent)) { duelPaused = true; stopCPUClock(); }
@@ -678,7 +741,7 @@
       });
     } catch {
       if (token !== cpuVersion) return;
-      cpuBusy = false; duelPaused = true; stopCPUClock(); save(); renderAll();
+      cpuBusy = false; cpuThinkingLeft = false; cpuThinkingRight = false; duelPaused = true; stopCPUClock(); save(); renderAll();
       showToast('CPU paused. Resume to try again.');
     }
   }
@@ -692,6 +755,8 @@
 
 
   document.querySelectorAll('.button, .icon-button, .theme-trigger, .mode-card, .theme-option, .motion-option, .direction').forEach((el) => el.classList.add('joy-ring'));
+  selectUI = window.RemixSelect.enhance('.duel-options select');
+  audioBank.setVolume(soundVolume / 100);
   audioBank.setEnabled(soundOn);
   updateThemeUI(); updateSound(); loadMode(currentMode);
 })();

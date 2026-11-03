@@ -4,6 +4,58 @@ const E = require('../engine.js');
 const board = (row) => [row, [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
 const sum = (grid) => grid.flat().reduce((a, b) => a + b, 0);
 
+test('tile progress reflects the displayed values and advances after reaching a target', () => {
+  assert.deepEqual(E.tileProgress(1024), { target: 2048, percent: 50 });
+  assert.deepEqual(E.tileProgress(512), { target: 2048, percent: 25 });
+  assert.deepEqual(E.tileProgress(256, 512), { target: 512, percent: 50 });
+  assert.deepEqual(E.tileProgress(2048), { target: 4096, percent: 50 });
+  assert.ok(E.tileProgress(2).percent > 0 && E.tileProgress(2).percent < 1);
+});
+
+test('arena boards and spawn streams are independent, including seed collisions', () => {
+  for (let seed = 1; seed <= 100; seed++) {
+    const { left, right } = E.createMatch('arena', seed, seed);
+    assert.notDeepEqual(left.board, right.board);
+    assert.notEqual(left.rng, right.rng);
+    assert.ok(E.validateState(left, 'arena'));
+    assert.ok(E.validateState(right, 'arena'));
+  }
+});
+test('versus keeps a matched start and fresh arena seeds change the match', () => {
+  const versus = E.createMatch('versus', 12345, 99999);
+  assert.deepEqual(versus.left, versus.right);
+  const first = E.createMatch('arena', 12345, 54321);
+  const second = E.createMatch('arena', 98765, 56789);
+  assert.notDeepEqual(first.left.board, second.left.board);
+  assert.notDeepEqual(first.right.board, second.right.board);
+  assert.throws(() => E.createMatch('classic'), /Unknown match mode/);
+});
+
+test('starting seeds stay fixed through moves, saves, and undo', () => {
+  let game = E.createGame('classic', undefined, 3491234567);
+  const first = structuredClone(game);
+  game = E.play(game, E.hint(game.board)).state;
+  assert.equal(game.seed, first.seed);
+  assert.equal(E.validateState(JSON.parse(JSON.stringify(game)), 'classic').seed, first.seed);
+  assert.equal(E.undoGame(game, first).seed, first.seed);
+  assert.equal(E.createGame('daily', '2026-11-03', 999).seed, E.createGame('daily', '2026-11-03', 1).seed);
+});
+test('legacy saves recover the original seed after many moves without changing the board', () => {
+  for (const seed of [1, 192837, 0xffffffff]) {
+    let game = E.createGame('zen', undefined, seed);
+    for (let turn = 0; turn < 80; turn++) {
+      const legal = E.DIRECTIONS.find((direction) => E.moveBoard(game.board, direction).changed);
+      if (!legal) break;
+      game = E.play(game, legal).state;
+    }
+    const legacy = { ...game }; delete legacy.seed;
+    const restored = E.validateState(legacy, 'zen');
+    assert.equal(restored.seed, seed);
+    assert.deepEqual(restored.board, game.board);
+    for (const invalid of [0, -1, null, 0x100000000, 1.1]) assert.equal(E.validateState({ ...game, seed: invalid }, 'zen'), null);
+  }
+});
+
 test('a fresh board has two tiles, zero score, and the right dimensions in every mode', () => {
   for (const mode of Object.keys(E.MODES)) {
     const game = E.createGame(mode, '2026-11-03', 123456);

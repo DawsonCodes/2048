@@ -172,3 +172,73 @@ test('unknown modes and directions fail explicitly', () => {
   assert.throws(() => E.createGame('constructor'), /Unknown game mode/);
   assert.throws(() => E.moveBoard(board([2, 4, 0, 0]), 'diagonal'), /Unknown direction/);
 });
+
+test('a run gets exactly three undos and undo never refunds hints', () => {
+  let game = E.createGame('classic', undefined, 123456);
+  const history = [];
+  for (let i = 0; i < 4; i++) { history.push(structuredClone(game)); game = E.play(game, E.hint(game.board)).state; }
+  game = E.useHint(game);
+  for (let used = 1; used <= 3; used++) {
+    game = E.undoGame(game, history.pop());
+    assert.equal(game.undosUsed, used);
+    assert.equal(game.hintsUsed, 1);
+  }
+  assert.equal(E.undoGame(game, history.pop()), null);
+});
+test('a run gets exactly three hints, and counts survive saved-state validation', () => {
+  let game = E.createGame();
+  for (let i = 0; i < 3; i++) game = E.useHint(game);
+  assert.equal(game.hintsUsed, 3);
+  assert.equal(E.useHint(game), null);
+  const restored = E.validateState(JSON.parse(JSON.stringify(game)), 'classic');
+  assert.equal(restored.hintsUsed, 3);
+  assert.equal(E.useHint(restored), null);
+  assert.equal(E.createGame().hintsUsed, 0);
+});
+test('legacy saves gain valid budgets while malformed budgets are rejected', () => {
+  const game = E.createGame();
+  delete game.undosUsed; delete game.hintsUsed;
+  assert.equal(E.validateState(game, 'classic').undosUsed, 0);
+  for (const count of [-1, 4, 0.5, '1', null]) {
+    assert.equal(E.validateState({ ...game, hintsUsed: count }, 'classic'), null);
+    assert.equal(E.validateState({ ...game, undosUsed: count }, 'classic'), null);
+  }
+});
+test('Tiny uses a 3x3 board and wins at 512', () => {
+  const game = E.createGame('tiny');
+  game.board = [[256, 256, 0], [2, 0, 0], [0, 0, 0]];
+  const won = E.play(game, 'left').state;
+  assert.equal(won.won, true);
+  assert.equal(E.goalFor('tiny'), 512);
+  assert.ok(E.validateState(won, 'tiny'));
+});
+test('Sprint ends after 50 valid moves and cannot spawn past its limit', () => {
+  const game = E.createGame('sprint');
+  game.moves = 49;
+  game.board = board([2, 2, 0, 0]);
+  const result = E.play(game, 'left');
+  assert.equal(result.state.moves, 50);
+  assert.equal(E.roundOver(result.state), true);
+  const blocked = E.play(result.state, 'right');
+  assert.equal(blocked.changed, false);
+  assert.equal(blocked.state.rng, result.state.rng);
+  assert.equal(E.validateState({ ...result.state, moves: 51 }, 'sprint'), null);
+});
+test('opponents start from identical boards and random sequences for the same seed', () => {
+  for (const mode of ['versus', 'arena']) {
+    const left = E.createGame(mode, undefined, 654321);
+    const right = E.createGame(mode, undefined, 654321);
+    assert.deepEqual(left, right);
+    assert.equal(left.undosUsed, 0);
+    assert.equal(left.hintsUsed, 0);
+  }
+});
+test('CPU match boards continue after 2048 and compare actual scores', () => {
+  const game = E.createGame('arena');
+  game.board = board([1024, 1024, 0, 0]);
+  const won = E.play(game, 'left').state;
+  assert.equal(won.continued, true);
+  assert.equal(E.roundOver(won), false);
+  assert.equal(E.compareRuns({ ...won, score: 20 }, { ...won, score: 10 }), 'left');
+  assert.equal(E.compareRuns(won, won), 'draw');
+});

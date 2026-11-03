@@ -356,3 +356,160 @@ kbd { display: inline-grid; place-items: center; min-width: 24px; height: 24px; 
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 [data-less-motion="true"] *, [data-less-motion="true"] *::before, [data-less-motion="true"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+
+/* Remix 2.1: fewer labels, sampled audio, and a blue/pink selection rim. */
+@property --joy-angle {
+  syntax: '<angle>';
+  initial-value: 35deg;
+  inherits: false;
+}
+:root { --joy-blue: #48c5ff; --joy-pink: #ff68b6; }
+[data-theme="light"] { --joy-blue: #007bdf; --joy-pink: #d82e8d; }
+.icon-filled { fill: currentColor; stroke: none; }
+.brand-mark { display: block; width: 36px; height: 36px; transform: none; object-fit: contain; }
+.intro { margin-bottom: 28px; }
+.title-line { gap: 18px; }
+.remix-badge { transform: none; }
+.mode-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mode-card { flex-direction: row; align-items: center; gap: 9px; min-height: 53px; padding: 11px 12px; --ring-radius: var(--radius); }
+.mode-card:first-child { grid-column: 1 / -1; }
+.mode-card[aria-selected="true"] { border-color: transparent; }
+.mode-copy { gap: 0; }
+.mode-title { gap: 6px; flex-wrap: wrap; font-size: 11px; }
+.mode-icon { width: 28px; height: 28px; border-radius: 8px; }
+.mode-icon .icon { width: 15px; height: 15px; }
+.mode-size { font-size: 8px; }
+.mode-indicator { display: none; }
+.goal-label { font-size: 10px; }
+.how-panel { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 13px 8px; }
+.how-panel h2 { width: 100%; }
+.how-panel .mini-merge { padding-top: 0; gap: 8px; }
+.how-panel .mini-merge > span { width: 30px; height: 30px; font-size: 14px; }
+.how-panel p { padding: 0; margin: 0; font-size: 9px; color: var(--text-faint); }
+.site-footer { justify-content: center; font-size: 10px; padding-bottom: 25px; }
+.touch-controls { justify-content: flex-end; }
+.board-bottomline { min-height: 31px; }
+.board-status { color: var(--text-muted); font-size: 8px; }
+.game-board[data-size="3"] .tile-face { font-size: clamp(38px, 7vw, 65px); }
+.game-board[data-size="3"] .tile[data-level="10"] .tile-face, .game-board[data-size="3"] .tile[data-level="11"] .tile-face { font-size: clamp(33px, 6vw, 52px); }
+
+/* A masked rim adds no layout shift and never catches pointer events. */
+.joy-ring { position: relative; isolation: isolate; --ring-radius: var(--radius-sm); }
+.mode-card.joy-ring { --ring-radius: var(--radius); }
+.direction.joy-ring { --ring-radius: 6px; }
+.joy-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: 2;
+  padding: 2px;
+  border-radius: calc(var(--ring-radius) + 3px);
+  background: conic-gradient(from var(--joy-angle), var(--joy-blue), var(--joy-blue) 30%, var(--joy-pink) 50%, var(--joy-pink) 80%, var(--joy-blue));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(-1px 0 2px color-mix(in srgb, var(--joy-blue) 35%, transparent)) drop-shadow(1px 0 2px color-mix(in srgb, var(--joy-pink) 35%, transparent));
+  transition: opacity 140ms ease;
+  animation: selection-orbit 5s cubic-bezier(.4, 0, .2, 1) infinite;
+  animation-play-state: paused;
+}
+.joy-ring:not(:disabled):hover::after, .joy-ring:focus-visible::after,
+.mode-card[aria-selected="true"]::after, .direction.is-hint::after {
+  opacity: 1;
+  animation-play-state: running;
+}
+.joy-ring:focus-visible { outline: none; }
+.joy-ring:disabled::after { opacity: 0; }
+html[data-input="play"] #game-board:focus-visible { outline: none; }
+.mode-card:focus-visible { background: var(--accent-soft); }
+
+.button-undo { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); min-height: 38px; padding: 0 11px; font-size: 11px; }
+.button-undo:hover:not(:disabled) { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, var(--surface)); border-color: var(--danger); }
+.tool-count { display: inline-grid; place-items: center; min-width: 19px; height: 19px; border-radius: 5px; background: var(--surface-3); color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.button-undo .tool-count { background: var(--danger-soft); color: var(--danger); }
+.button-undo:hover:not(:disabled) .icon { animation: undo-preview 900ms ease-in-out infinite; }
+.button-undo.is-rewinding .icon { animation: undo-rewind 460ms cubic-bezier(.2,.8,.3,1); }
+.button-undo.is-rewinding { animation: undo-button 460ms ease-out; }
+[data-theme="ms-paint"] .joy-ring { --ring-radius: 0px; }
+[data-theme="ms-paint"] .button-undo { color: #a40000; background: #f5d8d8; }
+[data-theme="ms-paint"] .tool-count { border-radius: 0; }
+/* Sweep for three seconds, ease to a stop, then hold for two seconds. */
+@keyframes selection-orbit {
+  0% { --joy-angle: 35deg; }
+  60%, 100% { --joy-angle: 395deg; }
+}
+@keyframes undo-preview { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-2px) rotate(-12deg); } }
+@keyframes undo-rewind { 0% { transform: rotate(0); } 40% { transform: translateX(-3px) rotate(-65deg); } 75% { transform: rotate(12deg); } 100% { transform: rotate(0); } }
+@keyframes undo-button { 0% { box-shadow: 0 0 0 0 var(--danger-soft); } 45% { box-shadow: 0 0 0 7px var(--danger-soft); } 100% { box-shadow: 0 0 0 12px transparent; } }
+@media (max-width: 799px) {
+  .mode-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .mode-card:first-child { grid-column: auto; }
+  .mode-card { padding: 11px 10px; flex-direction: row; gap: 7px; }
+  .mode-title { font-size: 11px; }
+  .touch-controls { flex-direction: row; justify-content: flex-end; }
+}
+@media (max-width: 479px) {
+  .brand-mark { width: 31px; height: 31px; }
+  .intro { margin-bottom: 25px; }
+  .mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mode-card:first-child { grid-column: 1 / -1; }
+  .mode-card { min-height: 49px; }
+  .how-panel { display: flex; }
+  .how-panel p { font-size: 10px; padding: 0; }
+  .touch-controls { justify-content: center; }
+  .site-footer { font-size: 9px; }
+}
+
+/* Local CPU matches share the board rules and keep both boards visible. */
+.duel-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; margin: -5px 0 25px; padding-bottom: 17px; border-bottom: 1px solid var(--border); }
+.duel-state { display: flex; align-items: center; gap: 14px; min-height: 35px; flex-wrap: wrap; }
+.duel-state strong { font-size: 13px; font-weight: 600; }
+#duel-status { color: var(--text-muted); font-size: 11px; }
+#duel-elapsed { color: var(--accent); font-size: 12px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.duel-options { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.duel-options label { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); }
+.duel-options select { min-height: 34px; max-width: 105px; padding: 0 23px 0 9px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--surface); color: var(--text); font: inherit; font-size: 11px; cursor: pointer; }
+.duel-options .button { min-height: 34px; }
+.main.is-duel { max-width: 1180px; }
+.main.is-duel .game-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+.main.is-duel .scorebar, .opponent-scorebar { min-height: 53px; }
+.opponent-scorebar { display: grid; grid-template-columns: 1.2fr 1fr 1fr; align-items: center; gap: 15px; margin-bottom: 16px; }
+.opponent-scorebar > div { display: flex; flex-direction: column; gap: 1px; }
+.opponent-scorebar > div + div { padding-left: 18px; border-left: 1px solid var(--border); }
+.opponent-scorebar strong { font-size: 29px; line-height: 1.2; font-weight: 700; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.opponent-scorebar > div + div strong { color: var(--text-muted); }
+.main.is-duel .sidebar { grid-column: 1 / -1; display: grid; grid-template-columns: 1.5fr 1fr; align-items: start; gap: 32px; }
+.main.is-duel .mode-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.main.is-duel .mode-card:first-child { grid-column: auto; }
+.main.is-duel .run-panel { margin: 0; padding: 0; border: 0; }
+.main.is-duel .how-panel { display: none; }
+.main.is-spectating .game-tools { justify-content: flex-end; }
+.cpu-board { cursor: default; }
+#cpu-thinking { color: var(--accent); font-size: 9px; }
+.mode-card-duel .mode-title { font-size: 10px; }
+[data-theme="ms-paint"] .duel-options select { border-radius: 0; box-shadow: var(--bevel-raised); }
+@media (max-width: 850px) {
+  .main.is-duel { max-width: 650px; }
+  .main.is-duel .game-layout { grid-template-columns: minmax(0, 1fr); }
+  .main.is-duel .sidebar { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .main.is-duel .run-panel { padding-top: 20px; border-top: 1px solid var(--border); }
+  .duel-options { justify-content: flex-start; }
+  .main.is-duel .mode-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 479px) {
+  .duel-toolbar { gap: 9px; margin-bottom: 20px; }
+  .duel-state { gap: 12px; }
+  .duel-options { gap: 8px; }
+  .duel-options label { font-size: 9px; gap: 4px; }
+  .duel-options select { max-width: 88px; min-height: 33px; padding-left: 6px; font-size: 10px; }
+  .main.is-duel .mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opponent-scorebar strong { font-size: 26px; }
+  .game-tools .button { padding: 0 8px; gap: 5px; font-size: 10px; }
+  .game-tools .button .icon { width: 14px; height: 14px; }
+  .game-tools .icon-button { width: 36px; height: 36px; }
+  .game-tools .tool-group { gap: 6px; }
+  .tool-count { min-width: 17px; height: 17px; font-size: 9px; }
+}

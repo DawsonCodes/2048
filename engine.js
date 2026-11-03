@@ -7,7 +7,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const MODES = Object.freeze({ classic: 4, daily: 4, zen: 5 });
+  const MODES = Object.freeze({ classic: 4, daily: 4, zen: 5, tiny: 3, sprint: 4, versus: 4, arena: 4 });
+  const ASSIST_LIMIT = 3;
+  const goalFor = (mode) => mode === 'tiny' ? 512 : 2048;
+  const moveLimitFor = (mode) => mode === 'sprint' ? 50 : null;
   const DIRECTIONS = Object.freeze(['left', 'up', 'down', 'right']);
   const cloneBoard = (board) => board.map((row) => row.slice());
   const highest = (board) => Math.max(2, ...board.flat());
@@ -49,7 +52,7 @@
     const size = MODES[mode];
     const first = spawnTile(Array.from({ length: size }, () => Array(size).fill(0)), mode === 'daily' ? seedFrom('2048-remix:' + date) : seed);
     const second = spawnTile(first.board, first.seed);
-    return { version: 1, mode, size, date: mode === 'daily' ? date : null, board: second.board, rng: second.seed, score: 0, moves: 0, won: false, continued: false };
+    return { version: 1, mode, size, date: mode === 'daily' ? date : null, board: second.board, rng: second.seed, score: 0, moves: 0, won: false, continued: false, undosUsed: 0, hintsUsed: 0 };
   }
 
   function coordinate(line, offset, direction, size) {
@@ -104,12 +107,29 @@
     return false;
   }
 
+  function roundOver(state) {
+    const limit = moveLimitFor(state.mode);
+    return (limit !== null && state.moves >= limit) || !canMove(state.board);
+  }
+
   function play(state, direction) {
+    if (roundOver(state)) return { board: cloneBoard(state.board), motions: [], merges: [], gained: 0, changed: false, state, spawn: null };
     const moved = moveBoard(state.board, direction);
     if (!moved.changed) return { ...moved, state, spawn: null };
     const spawned = spawnTile(moved.board, state.rng);
-    const won = state.won || highest(moved.board) >= 2048;
-    return { ...moved, spawn: spawned.tile, state: { ...state, board: spawned.board, rng: spawned.seed, score: state.score + moved.gained, moves: state.moves + 1, won, continued: state.continued || (state.mode === 'zen' && won) } };
+    const won = state.won || highest(moved.board) >= goalFor(state.mode);
+    return { ...moved, spawn: spawned.tile, state: { ...state, board: spawned.board, rng: spawned.seed, score: state.score + moved.gained, moves: state.moves + 1, won, continued: state.continued || (['zen', 'sprint', 'versus', 'arena'].includes(state.mode) && won) } };
+  }
+
+  /** Assist usage belongs to the run, so rewinding a board never refunds it. */
+  function undoGame(current, previous) {
+    if (!previous || current.undosUsed >= ASSIST_LIMIT || previous.mode !== current.mode || previous.date !== current.date) return null;
+    return { ...previous, board: cloneBoard(previous.board), undosUsed: current.undosUsed + 1, hintsUsed: current.hintsUsed };
+  }
+
+  function useHint(state) {
+    if (state.hintsUsed >= ASSIST_LIMIT || roundOver(state) || (state.won && !state.continued)) return null;
+    return { ...state, hintsUsed: state.hintsUsed + 1 };
   }
 
   function evaluate(board) {
@@ -161,15 +181,40 @@
     return Array.isArray(board) && board.length === size && board.every((row) => Array.isArray(row) && row.length === size && row.every((v) => v === 0 || (Number.isSafeInteger(v) && v >= 2 && Number.isInteger(Math.log2(v)))));
   }
 
+  /** Two deliberately different local strategies for the spectating mode. */
+  function cpuDirection(board, strategy = 'planner') {
+    if (strategy === 'planner') return hint(board);
+    if (strategy !== 'greedy') throw new Error('Unknown CPU strategy');
+    let best = null, bestValue = -Infinity;
+    for (const direction of DIRECTIONS) {
+      const result = moveBoard(board, direction);
+      if (!result.changed) continue;
+      const max = highest(result.board), end = board.length - 1;
+      const corner = [result.board[0][0], result.board[0][end], result.board[end][0], result.board[end][end]].includes(max);
+      const value = result.gained * 8 + emptyCells(result.board).length * 3 + (corner ? Math.log2(max) : 0);
+      if (value > bestValue) { bestValue = value; best = direction; }
+    }
+    return best;
+  }
+
+  function compareRuns(left, right) {
+    const difference = left.score - right.score || highest(left.board) - highest(right.board);
+    return difference > 0 ? 'left' : difference < 0 ? 'right' : 'draw';
+  }
+
   /** Treat persisted data as untrusted. Return only the supported state fields. */
   function validateState(value, mode, date = utcDate()) {
     if (!value || value.version !== 1 || !Object.hasOwn(MODES, mode) || value.mode !== mode || value.size !== MODES[mode]) return null;
     if ((mode === 'daily' && value.date !== date) || (mode !== 'daily' && value.date !== null)) return null;
     if (!isBoard(value.board, value.size) || value.board.flat().filter(Boolean).length < 2) return null;
     if (![value.score, value.moves].every((v) => Number.isSafeInteger(v) && v >= 0) || !Number.isInteger(value.rng) || value.rng <= 0 || value.rng > 0xffffffff) return null;
-    if (typeof value.won !== 'boolean' || typeof value.continued !== 'boolean' || (value.continued && !value.won) || value.won !== (highest(value.board) >= 2048)) return null;
-    return { version: 1, mode, size: value.size, date: value.date, board: cloneBoard(value.board), rng: value.rng, score: value.score, moves: value.moves, won: value.won, continued: value.continued };
+    if (typeof value.won !== 'boolean' || typeof value.continued !== 'boolean' || (value.continued && !value.won) || value.won !== (highest(value.board) >= goalFor(mode))) return null;
+    const undosUsed = value.undosUsed === undefined ? 0 : value.undosUsed;
+    const hintsUsed = value.hintsUsed === undefined ? 0 : value.hintsUsed;
+    if (![undosUsed, hintsUsed].every((n) => Number.isInteger(n) && n >= 0 && n <= ASSIST_LIMIT)) return null;
+    if (moveLimitFor(mode) !== null && value.moves > moveLimitFor(mode)) return null;
+    return { version: 1, mode, size: value.size, date: value.date, board: cloneBoard(value.board), rng: value.rng, score: value.score, moves: value.moves, won: value.won, continued: value.continued, undosUsed, hintsUsed };
   }
 
-  return Object.freeze({ MODES, DIRECTIONS, cloneBoard, highest, utcDate, seedFrom, randomStep, emptyCells, spawnTile, createGame, moveBoard, canMove, play, hint, isBoard, validateState });
+  return Object.freeze({ MODES, ASSIST_LIMIT, goalFor, moveLimitFor, roundOver, undoGame, useHint, DIRECTIONS, cloneBoard, highest, utcDate, seedFrom, randomStep, emptyCells, spawnTile, createGame, moveBoard, canMove, play, hint, cpuDirection, compareRuns, isBoard, validateState });
 });

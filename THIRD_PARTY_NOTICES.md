@@ -1,5 +1,26 @@
 # Third-party notices
 
+## Octocat source icon
+
+The GitHub icon in `index.html` was adapted from AppWatch's `src/components/Icons.tsx`, commit `2ccfe47c1c78058a6598cf72991b3130a9f0efb0`, under the AppWatch MIT license reproduced below.
+
+## Sound samples
+
+The WAV files in `assets/audio/` are from **Interface Sounds (1.0)** by Kenney:
+https://kenney.nl/assets/interface-sounds
+
+They are licensed CC0. The original license is retained in `assets/audio/LICENSE.txt`.
+Files were obtained from the Calinou/kenney-interface-sounds packaging, commit `4596a49eaf5a533948d49a47467f606bcdea70ff`.
+
+| File | Use |
+| --- | --- |
+| `click_001.wav` | Slide and mode selection |
+| `drop_001.wav` | Merge |
+| `pluck_001.wav` | Large merge |
+| `back_001.wav` | Undo |
+| `open_001.wav` | Hint |
+| `confirmation_001.wav` | New run and goal reached |
+
 ## AppWatch theme system
 
 The theme tokens in `themes.css`, theme names and descriptions, first-paint resolution, selector layout, and circular reveal behavior were copied or adapted from [DawsonCodes/AppWatch](https://github.com/DawsonCodes/AppWatch), commit `7ffec0926697d0e9ee0d103f2c7c4b6c895c16cc`.

@@ -2,92 +2,113 @@
 
 **Dawson’s first GitHub repository. Still just for fun.**
 
-This repo started in November 2024 as a tiny 2048 experiment—the first repo on the DawsonCodes account. It’s now a modern little browser game with a few new twists. A place to play around, learn things, and say “one more try” a few too many times.
+This repo started in November 2024 as a small 2048 experiment—the first repository on the DawsonCodes account. It’s now a modern browser game with seven ways to play, local CPU opponents, and a few familiar themes.
 
-[**Play 2048 Remix →**](https://dawsoncodes.github.io/2048/)
+[**Play 2048 Remix →**](https://dawsoncodes.github.io/2048-remix/)
 
-![2048 Remix in Gray Dark, during a real game](docs/preview.jpg)
+![2048 Remix preview](docs/preview.jpg)
 
-## Three ways to play
+## Game modes
 
-| Mode | The idea |
+| Mode | Rules |
 | --- | --- |
-| **Classic** | The familiar 4×4 board. Merge your way to 2048, then keep going if you want. |
-| **Daily** | A 4×4 challenge seeded by the UTC date. Everyone starts with the same board and random sequence. Restarting replays that day’s seed. |
-| **Zen** | A roomy 5×5 board. Reach 2048 and carry straight on. |
+| **Classic** | 4×4, target 2048, with the option to keep going. |
+| **Daily** | A 4×4 challenge seeded by the UTC date. Restarting replays that day’s starting board and random sequence. |
+| **Zen** | A roomy 5×5 board that continues past 2048. |
+| **Tiny** | 3×3, target 512, with the option to keep going. |
+| **Sprint** | Score as much as possible in 50 valid moves. |
+| **Player vs CPU** | Each valid player move gives the CPU one turn. |
+| **CPU vs CPU** | Watch two local CPUs play with independent difficulty settings. |
 
-Daily is a casual challenge with hints and undo, not a ranked competition. Different moves can lead to different boards even with the same seed.
+In both CPU modes, boards start from the same seed and use the same tile rules. A blocked board stops while the other continues. The match ends when both boards are blocked; the higher score wins, with top tile breaking score ties. CPU matches continue beyond 2048.
 
-## The good stuff
+Pause/resume, elapsed time, and spectating speeds are built in. Hidden tabs automatically pause CPU matches. Saved matches retain both boards, settings, and elapsed active time.
 
-- Smooth tile slides, merge pops, milestone progress, and a little celebration at 2048.
-- Up to **32 moves of undo**, including after reloading.
-- A local, look-ahead hint when you need a nudge.
-- Keyboard, swipe, and on-screen controls.
-- Separate saved runs and personal bests for each mode.
-- Optional synthesized merge sounds, off by default.
-- **Gray Dark, Light, and MS Paint**, adapted from [AppWatch](https://github.com/DawsonCodes/AppWatch)’s theme system and picker.
-- A circular theme reveal, a less-motion option, and support for the system’s reduced-motion preference.
-- A responsive layout, keyboard-accessible menus, screen-reader board labels, and clear focus states.
+![Local CPU versus CPU match](docs/arena.jpg)
 
-Theme, sound, and progress use their own `2048-remix:` storage keys. They do not change AppWatch’s preferences or files. On your first visit, the theme follows your system’s light/dark preference; MS Paint is always an explicit choice.
+## CPU difficulty
 
-## Controls
+| Level | Decision making |
+| --- | --- |
+| **Easy** | Mixes legal exploratory moves with a simple evaluation. |
+| **Normal** | Evaluates the immediate legal moves. |
+| **Hard** | Searches further ahead within a bounded CPU budget. |
+| **Insane** | Uses a deeper search and a larger CPU budget. |
+
+CPU decisions use fixed board heuristics and bounded expectimax search. They run in a Web Worker, with a yielding fallback where workers are unavailable. Move choices leave the board and its random sequence untouched until a legal move is applied.
+
+## Controls and assistance
 
 | Action | Controls |
 | --- | --- |
 | Move | Arrow keys, WASD, swipe, or direction buttons |
-| Undo | **U** |
-| Hint | **H** |
-| New game | **R** (asks before replacing a run you’ve started) |
+| Undo | **U**, with **3 uses per run** |
+| Hint | **H**, with **3 uses per run** |
+| New game | **R** (asks before replacing a started run) |
 | How to play | **?** or the help button |
 
-Matching tiles merge once per move. Only a move that changes the board adds a new tile. The score increases by the value of each merged tile.
+Only a move that changes the board adds a new tile. Matching tiles merge once per move, and each merged tile’s value is added to the score.
 
-## Run it
+Undo and hint counts survive reloads and mode switches. Undo does not refund either budget. In Player vs CPU, undo restores the paired player/CPU turn. CPU planning uses its own decision algorithm and does not consume player hints.
 
-Open `index.html` in a modern browser, or serve the repository with any static server. There’s no build step and nothing to install for the game.
+## Appearance and sound
 
-For example, with Python installed:
+- Gray Dark, Light, and MS Paint themes adapted from [AppWatch](https://github.com/DawsonCodes/AppWatch).
+- AppWatch’s Octocat source link, plus a new matching game logo and favicon.
+- A blue/pink rim that sweeps, slows to a stop, and pauses before repeating on hovered, keyboard-focused, and selected controls.
+- A red Undo button with a short rewind animation.
+- Smooth slides, merge pops, theme reveals, and reduced-motion support.
+- Optional local WAV samples by Kenney for slides, merges, large tiles, undo, hints, and confirmations. Sound starts off.
+
+All preferences and saves use `2048-remix:` storage keys. AppWatch and RPS-Robot were inspected as references; only this repository was edited.
+
+## Run locally
+
+Serve the repository with any static web server. There is no build step or dependency installation for the game.
+
+For example, with Python:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000`.
+Open `http://localhost:8000`.
 
-With Node.js installed, run the checks without installing packages:
+With Node.js installed, run checks directly:
 
 ```sh
 npm test
 npm run check
 ```
 
-The tests cover merging in all directions, scoring, invalid moves, win/loss states, seeded replay, saved-state validation, hints, and randomized board invariants.
+Tests cover merging, scoring, invalid moves, win/loss states, assistance budgets, save migration, Daily replay, Tiny, Sprint, CPU legality, and randomized game invariants.
 
-## Repo layout
+## Source layout
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The page, accessible controls, menus, and dialogs |
-| `engine.js` | Pure game rules, seeded randomness, save validation, and hints |
-| `script.js` | Browser input, animation, audio, storage, and UI |
-| `themes.css` | AppWatch’s theme tokens |
-| `theme-init.js` | Applies the saved theme before the page paints |
-| `styles.css` | Responsive layout, tile colors, and motion |
-| `tests/engine.test.cjs` | Dependency-free engine tests |
-| `THIRD_PARTY_NOTICES.md` | Theme attribution and its original license |
+| `index.html` | Accessible page, menus, controls, and dialogs |
+| `engine.js` | Game rules, seeded randomness, assistance limits, hints, and save validation |
+| `script.js` | Input, animation, saved runs, and CPU match coordination |
+| `cpu-ai.js` | Fixed CPU evaluation and difficulty-dependent search |
+| `cpu.js`, `cpu-worker.js` | Local worker transport and fallback |
+| `audio.js`, `assets/audio/` | Sample playback and original CC0 audio license |
+| `themes.css`, `theme-init.js` | AppWatch palette tokens and first-paint theme resolution |
+| `styles.css` | Layout, tile colors, selection rims, and motion |
+| `tests/` | Dependency-free Node tests |
 
-## Hosting & privacy
+## Hosting and privacy
 
-The game stays at **[dawsoncodes.github.io/2048/](https://dawsoncodes.github.io/2048/)** using the existing GitHub Pages setup. The repo name stays `2048`; **2048 Remix** is the game’s display name.
+GitHub Pages serves the static files at **[dawsoncodes.github.io/2048-remix/](https://dawsoncodes.github.io/2048-remix/)**. Gameplay and CPU decisions run in the visitor’s browser. There are no inference APIs, API keys, accounts, gameplay uploads, external fonts, CDN scripts, or per-game GitHub Actions jobs. No custom GitHub Actions workflow is added; publication uses the existing GitHub Pages setup.
 
-The game runs entirely in the browser. No account, backend, analytics, API keys, external fonts, or CDN scripts. The game itself makes no network requests after its own static assets load. GitHub Pages still serves those assets under its normal hosting policies.
+Sound loads WAV files from this same site when enabled. Progress and preferences stay in this browser. Clearing site data clears the saves; blocked or full storage falls back to in-memory play. The latest Daily replaces the previous date’s saved Daily while retaining the mode’s personal best.
 
-Your saves stay in this browser. Clearing site data clears them; blocked or full storage falls back to in-memory play. Scores do not sync between devices. Daily changes at midnight UTC, and the latest Daily run replaces the previous date’s saved Daily. Your personal best is retained for each mode.
+## Credits
 
-## A little credit
+The original [2048](https://github.com/gabrielecirulli/2048) was created by Gabriele Cirulli. This is an independent implementation.
 
-The original [2048](https://github.com/gabrielecirulli/2048) was created by Gabriele Cirulli. This is an independent implementation of the game, with theme tokens and picker behavior adapted from Dawson’s AppWatch. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the AppWatch notice.
+Theme tokens, theme-picker behavior, and the Octocat icon come from Dawson’s AppWatch. Sound samples are from [Kenney’s Interface Sounds](https://kenney.nl/assets/interface-sounds), licensed CC0. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Made for fun. The original commits are still in the Git history.
+Mode research included compact boards in [sanskarIN/2048](https://github.com/sanskarIN/2048) and move-limited play in [ThomasFraserDev/2048](https://github.com/ThomasFraserDev/2048). The new mode implementations were written for this repo.
+
+The original commits remain in the Git history.

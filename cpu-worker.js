@@ -1,5 +1,5 @@
 /* All CPU planning happens locally, away from rendering and input. */
-importScripts('engine.js', 'cpu-ai.js');
+importScripts('engine.js?v=2.2.0', 'cpu-ai.js?v=2.2.0');
 self.addEventListener('message', (event) => {
   const { id, board, difficulty } = event.data;
   try {

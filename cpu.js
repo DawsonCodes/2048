@@ -18,7 +18,7 @@
   }
   try {
     if (window.Worker && location.protocol !== 'file:') {
-      worker = new Worker('cpu-worker.js');
+      worker = new Worker('cpu-worker.js?v=2.2.0');
       worker.addEventListener('message', ({ data }) => {
         const entry = pending.get(data.id);
         if (!entry) return;

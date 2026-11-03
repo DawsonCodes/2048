@@ -1,17 +1,150 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2048 Game</title>
+<!doctype html>
+<html lang="en" data-theme="gray-dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#131518">
+    <meta name="description" content="A little 2048 obsession, remixed. Play Classic, a seeded Daily, or a roomy 5×5 Zen board. Dawson's first GitHub repo, still just for fun.">
+    <meta property="og:title" content="2048 Remix · by Dawson">
+    <meta property="og:description" content="Small tiles. One more try. A modern, just-for-fun 2048 with three ways to play.">
+    <title>2048 Remix · by Dawson</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <script src="theme-init.js"></script>
+    <link rel="stylesheet" href="themes.css">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-</head>
-<body>
-    <div id="game-container">
-        <div id="game-board"></div>
-        <div id="score-container">Score: <span id="score">0</span></div>
-    </div>
-    <script src="script.js"></script>
-</body>
+    <script src="engine.js" defer></script>
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#game-board">Skip to game</a>
+    <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M19 12H5m6 6-6-6 6-6"/></symbol>
+        <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24"><path d="m9 5-6 6 6 6M3 11h11a6 6 0 0 1 6 6v2"/></symbol>
+        <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+        <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.6-3.2 1.8 1.8 0 0 1 1.4-2.9h1A4 4 0 0 0 21 11a9 9 0 0 0-9-8Z"/><circle cx="7.5" cy="10" r=".7"/><circle cx="10.5" cy="6.7" r=".7"/><circle cx="15" cy="7.5" r=".7"/><circle cx="6.7" cy="14" r=".7"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18"/></symbol>
+        <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.1 1.9c-1 .8-1.6 1.1-1.6 2.6m0 3h.01"/></symbol>
+        <symbol id="i-sound" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+        <symbol id="i-muted" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5V4Zm5 5 6 6m0-6-6 6"/></symbol>
+        <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h.01m4 0h.01m4 0h.01"/></symbol>
+        <symbol id="i-zen" viewBox="0 0 24 24"><path d="M12 21C5 21 2 16 3 10c4 0 7 2 9 7m0 4c7 0 10-5 9-11-4 0-7 2-9 7m0 4C5 14 7 7 12 3c5 4 7 11 0 18Z"/></symbol>
+        <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 3h8v7a4 4 0 0 1-8 0V3Zm0 2H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4m-4 2v7m-4 0h8"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+        <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-12h-7l0-8Z"/></symbol>
+      </defs>
+    </svg>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="./" aria-label="2048 Remix home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i>2</i></span>
+          <span>2048<span class="brand-remix"> / remix</span></span>
+        </a>
+        <span class="header-note">a little side project by <strong>Dawson</strong></span>
+        <div class="header-actions">
+          <div class="theme-picker" id="theme-picker">
+            <button class="theme-trigger" id="theme-trigger" type="button" aria-haspopup="menu" aria-controls="theme-menu" aria-expanded="false">
+              <svg class="icon"><use href="#i-palette"/></svg><span id="theme-label">Gray Dark</span><svg class="icon chevron"><use href="#i-chevron"/></svg>
+            </button>
+            <div class="theme-menu" id="theme-menu" role="menu" aria-label="Appearance" hidden>
+              <div class="menu-eyebrow" role="presentation">Make yourself at home</div>
+              <button class="theme-option" type="button" data-theme-option="gray-dark" role="menuitemradio" aria-checked="true" tabindex="-1">
+                <span class="swatch swatch-dark" aria-hidden="true"></span><span class="option-copy"><strong>Gray Dark</strong><small>Neutral charcoal, blue accent</small></span><svg class="icon theme-check"><use href="#i-check"/></svg>
+              </button>
+              <button class="theme-option" type="button" data-theme-option="light" role="menuitemradio" aria-checked="false" tabindex="-1">
+                <span class="swatch swatch-light" aria-hidden="true"></span><span class="option-copy"><strong>Light</strong><small>Clean light gray and white</small></span><svg class="icon theme-check"><use href="#i-check"/></svg>
+              </button>
+              <button class="theme-option" type="button" data-theme-option="ms-paint" role="menuitemradio" aria-checked="false" tabindex="-1">
+                <span class="swatch swatch-paint" aria-hidden="true"></span><span class="option-copy"><strong>MS Paint</strong><small>Classic desktop paint tribute</small></span><svg class="icon theme-check"><use href="#i-check"/></svg>
+              </button>
+              <div class="theme-menu-footer" role="presentation">
+                <button class="motion-option" id="motion-toggle" type="button" role="menuitemcheckbox" aria-checked="false" tabindex="-1"><span class="option-copy"><strong>Less motion</strong><small>A calmer kind of remix</small></span><span class="switch" aria-hidden="true"><i></i></span></button>
+              </div>
+            </div>
+          </div>
+          <a class="icon-button code-link" href="https://github.com/DawsonCodes/2048" target="_blank" rel="noopener noreferrer" aria-label="2048 repository on GitHub (opens in a new tab)" title="View on GitHub"><svg class="icon"><use href="#i-code"/></svg></a>
+        </div>
+      </div>
+    </header>
+
+    <main class="main" id="main">
+      <div class="intro">
+        <div>
+          <div class="title-line"><h1>2048<span class="title-dot">.</span></h1><span class="remix-badge"><svg class="icon"><use href="#i-spark"/></svg>the remix</span></div>
+          <p class="tagline">Small tiles. Big <span>“one more try.”</span></p>
+        </div>
+        <div class="intro-aside"><span class="live-dot"></span> No rush. Just one good merge.</div>
+      </div>
+
+      <div class="game-layout">
+        <section class="play-panel" id="play-panel" role="tabpanel" aria-labelledby="mode-classic">
+          <div class="scorebar">
+            <div class="score-cards">
+              <div class="score-card score-card-current"><span class="eyebrow">Score</span><span class="score-value" id="score">0</span><span class="score-add" id="score-add" aria-hidden="true"></span></div>
+              <div class="score-card"><span class="eyebrow"><svg class="icon tiny"><use href="#i-trophy"/></svg><span><span class="best-prefix">Personal </span>best</span></span><span class="score-value" id="best">0</span></div>
+            </div>
+            <button class="button button-primary new-game" id="new-game" type="button" title="New game (R)"><svg class="icon"><use href="#i-reset"/></svg><span>New game</span></button>
+          </div>
+
+          <div class="board-shell">
+            <div class="board-topline"><span id="board-caption">CLASSIC · 4 × 4</span><span class="board-status" id="board-status"><span class="live-dot"></span> YOUR NEXT MOVE</span></div>
+            <div class="game-board" id="game-board" tabindex="0" role="group" aria-label="2048 game board. Use arrow keys or W A S D to move.">
+              <div class="board-field" id="board-field">
+                <div class="board-grid" id="board-grid" role="grid" aria-label="2048 tiles"></div>
+                <div class="tile-layer" id="tile-layer" aria-hidden="true"></div>
+                <div class="particles" id="particles" aria-hidden="true"></div>
+              </div>
+              <div class="board-overlay" id="board-overlay" hidden>
+                <div class="overlay-card"><span class="overlay-icon" id="overlay-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><p class="eyebrow" id="overlay-kicker">LOOK AT YOU GO</p><h2 id="overlay-title">2048. You did that.</h2><p id="overlay-copy">A little patience. A lot of good merges.</p><button class="button button-primary" id="overlay-primary" type="button">Keep going <span aria-hidden="true">↗</span></button><button class="text-button" id="overlay-secondary" type="button">Start a fresh board</button></div>
+              </div>
+            </div>
+            <div class="board-bottomline"><span id="board-message">Make a move. Find your rhythm.</span><span class="keyboard-note">← ↑ ↓ → <span>or WASD</span></span></div>
+          </div>
+
+          <div class="game-tools">
+            <div class="tool-group"><button class="button button-subtle" id="undo" type="button" disabled title="Undo last move (U)"><svg class="icon"><use href="#i-undo"/></svg>Undo</button><button class="button button-subtle" id="hint" type="button" title="Get a hint (H)"><svg class="icon"><use href="#i-spark"/></svg>Hint</button></div>
+            <div class="tool-group"><button class="icon-button" id="sound-toggle" type="button" aria-label="Turn sound on" aria-pressed="false" title="Sound off"><svg class="icon"><use href="#i-muted"/></svg></button><button class="icon-button" id="help-toggle" type="button" aria-label="How to play" title="How to play (?)"><svg class="icon"><use href="#i-help"/></svg></button></div>
+          </div>
+          <div class="touch-controls" aria-label="Direction controls"><span>Tap, swipe, or use your keys.</span><div class="direction-buttons"><button class="direction" type="button" data-direction="left" aria-label="Move left"><svg class="icon"><use href="#i-arrow"/></svg></button><button class="direction" type="button" data-direction="up" aria-label="Move up"><svg class="icon"><use href="#i-arrow"/></svg></button><button class="direction" type="button" data-direction="down" aria-label="Move down"><svg class="icon"><use href="#i-arrow"/></svg></button><button class="direction" type="button" data-direction="right" aria-label="Move right"><svg class="icon"><use href="#i-arrow"/></svg></button></div></div>
+        </section>
+
+        <aside class="sidebar" aria-label="Game modes and progress">
+          <section class="mode-section" aria-labelledby="mode-heading">
+            <div class="section-heading"><h2 id="mode-heading">Pick your pace</h2><span>03 modes</span></div>
+            <div class="mode-list" role="tablist" aria-label="Game mode" aria-orientation="vertical">
+              <button class="mode-card" id="mode-classic" data-mode="classic" type="button" role="tab" aria-selected="true" aria-controls="play-panel" tabindex="0"><span class="mode-icon"><svg class="icon"><use href="#i-grid"/></svg></span><span class="mode-copy"><span class="mode-title">Classic <span class="mode-size">4 × 4</span></span><span class="mode-desc">The original little obsession.</span></span><span class="mode-indicator" aria-hidden="true"></span></button>
+              <button class="mode-card" id="mode-daily" data-mode="daily" type="button" role="tab" aria-selected="false" aria-controls="play-panel" tabindex="-1"><span class="mode-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span class="mode-copy"><span class="mode-title">Daily <span class="mode-size" id="daily-date">TODAY</span></span><span class="mode-desc">One seed. A fresh challenge.</span></span><span class="mode-indicator" aria-hidden="true"></span></button>
+              <button class="mode-card" id="mode-zen" data-mode="zen" type="button" role="tab" aria-selected="false" aria-controls="play-panel" tabindex="-1"><span class="mode-icon"><svg class="icon"><use href="#i-zen"/></svg></span><span class="mode-copy"><span class="mode-title">Zen <span class="mode-size">5 × 5</span></span><span class="mode-desc">More room. More possibilities.</span></span><span class="mode-indicator" aria-hidden="true"></span></button>
+            </div>
+          </section>
+
+          <section class="run-panel" aria-labelledby="run-heading">
+            <div class="section-heading"><h2 id="run-heading">Your little run</h2><svg class="icon tiny"><use href="#i-bolt"/></svg></div>
+            <div class="run-stats"><div><span class="eyebrow">Top tile</span><strong id="top-tile">2</strong></div><div><span class="eyebrow">Moves</span><strong id="moves">0</strong></div><div><span class="eyebrow">To reach</span><strong class="goal-number" id="target">2048</strong></div></div>
+            <div class="goal-label"><span id="goal-copy">It all starts with a 2.</span><span id="goal-percent">9%</span></div>
+            <div class="goal-track" id="goal-progress" role="progressbar" aria-label="Highest tile progress toward 2048" aria-valuemin="0" aria-valuemax="100" aria-valuenow="9"><span id="goal-fill"></span></div>
+            <div class="milestones" aria-label="Tile milestones"><span data-milestone="8">8</span><span data-milestone="32">32</span><span data-milestone="128">128</span><span data-milestone="512">512</span><span data-milestone="2048">2048 <svg class="icon"><use href="#i-spark"/></svg></span></div>
+          </section>
+
+          <section class="how-panel" aria-labelledby="how-heading"><h2 id="how-heading">A tiny refresher</h2><div class="mini-merge" aria-hidden="true"><span>2</span><i>+</i><span>2</span><svg class="icon"><use href="#i-arrow"/></svg><span class="mini-result">4</span></div><p>Slide the tiles. Match the numbers.<br>Keep merging your way to <strong>2048.</strong></p><p class="muted-detail">Only a move that changes the board adds a new tile. Make it count.</p></section>
+          <div class="repo-note"><span class="repo-note-mark" aria-hidden="true">↗</span><p><strong>A first repo, remixed.</strong><span>Started in 2024. Still here for the fun of it.</span></p></div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-footer"><span>Made by <a href="https://github.com/DawsonCodes" target="_blank" rel="noopener noreferrer">Dawson</a><span class="footer-separator"> / </span>My first GitHub repo.</span><span>Just for fun. <span class="footer-spark" aria-hidden="true">✳</span> Always.</span></footer>
+
+    <dialog id="help-dialog" class="dialog" aria-labelledby="help-title"><div class="dialog-header"><span class="eyebrow">THE VERY SHORT MANUAL</span><button class="icon-button" data-close-dialog type="button" aria-label="Close instructions"><svg class="icon"><use href="#i-close"/></svg></button></div><h2 id="help-title">Good things add up.</h2><p>Slide all the tiles in one direction. Two matching tiles become one, and the new value goes toward your score. Each tile merges once per move.</p><div class="help-shortcuts"><span>Move</span><span><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> <small>or WASD / swipe</small></span><span>Undo</span><span><kbd>U</kbd> <small>up to 32 moves back</small></span><span>A little nudge</span><span><kbd>H</kbd> <small>get a hint</small></span><span>Start over</span><span><kbd>R</kbd> <small>we’ll ask first</small></span></div><p><strong>Classic</strong> is the familiar 4×4. <strong>Daily</strong> gives everyone the same starting board and random sequence for a UTC date; restarting replays that seed. <strong>Zen</strong> opens up a 5×5 board.</p><p class="muted-detail">Your boards, undo history, and best scores save in this browser when storage is available. Each mode keeps its own run. Hints and undo are welcome in every mode; there’s no ranked leaderboard.</p><button class="button button-primary dialog-done" data-close-dialog type="button">Got it. Let’s play.</button></dialog>
+
+    <dialog id="restart-dialog" class="dialog restart-dialog" aria-labelledby="restart-title"><span class="eyebrow">A CLEAN SLATE</span><h2 id="restart-title">One more try?</h2><p id="restart-copy">This replaces your current board. Your personal best is yours to keep.</p><div class="dialog-buttons"><button class="button" data-close-dialog type="button" autofocus>Keep playing</button><button class="button button-primary" id="confirm-restart" type="button">Fresh board <svg class="icon"><use href="#i-reset"/></svg></button></div></dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="sr-only" id="game-announcer" role="status" aria-live="polite" aria-atomic="true"></div>
+    <noscript><div class="noscript">Turn on JavaScript to play 2048 Remix. The game runs entirely in your browser.</div></noscript>
+  </body>
 </html>

@@ -1,0 +1,322 @@
+/* ==========================================================================
+   AppWatch design tokens
+   --------------------------------------------------------------------------
+   Three complete themes on [data-theme]:
+     gray-dark  neutral charcoal, blue brand accent (default)
+     light      soft white, the same accent family
+     ms-paint   a playful tribute to classic desktop paint software
+   Platform identity is constant across themes: App Store is blue, Google
+   Play is green, Windows is cyan, Mac is orange, and "new this week" is
+   violet. Components reference tokens only.
+   ========================================================================== */
+
+:root,
+[data-theme='gray-dark'] {
+  color-scheme: dark;
+
+  --bg: #131518;
+  --surface: #1b1e22;
+  --surface-2: #22262b;
+  --surface-3: #2b3036;
+  --border: #2a2e34;
+  --border-strong: #3c424a;
+  --text: #eceef1;
+  --text-muted: #a4abb5;
+  --text-faint: #858d98;
+
+  --accent: #62a8ff;
+  --accent-solid: #2f6fdb;
+  --accent-solid-hover: #3b7ce8;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(98, 168, 255, 0.13);
+
+  --apple: #3d9bff;
+  --apple-text: #6cb2ff;
+  --apple-solid: #1f6fd6;
+  --apple-soft: rgba(61, 155, 255, 0.13);
+  --google: #2fc46a;
+  --google-text: #52d487;
+  --google-solid: #167a3e;
+  --google-soft: rgba(47, 196, 106, 0.13);
+  --windows: #2bc4e8;
+  --windows-text: #5fd3f0;
+  --windows-solid: #0e7490;
+  --windows-soft: rgba(43, 196, 232, 0.13);
+  --mac: #ff9f45;
+  --mac-text: #ffb46e;
+  --mac-solid: #b45309;
+  --mac-soft: rgba(255, 159, 69, 0.13);
+  /* Chart marks: platform hues stepped into the dark chart band (validated
+     against the panel surface: lightness, chroma, CVD separation, 3:1). */
+  --chart-apple: #3a87e8;
+  --chart-google: #1fa257;
+  --chart-windows: #1a9fbf;
+  --chart-mac: #d0721f;
+  --chart-grid: #343a42;
+  --fresh: #b690ff;
+  --fresh-soft: rgba(182, 144, 255, 0.15);
+
+  --ok: #43c97a;
+  --warn: #f1b44c;
+  --danger: #ff7d88;
+  --ok-soft: rgba(67, 201, 122, 0.13);
+  --warn-soft: rgba(241, 180, 76, 0.13);
+  --danger-soft: rgba(255, 125, 136, 0.12);
+
+  --star: #ffc53d;
+  --spark-1: #ffd466;
+  --spark-2: #ff9a3c;
+  --focus: #7cb6ff;
+  --logo-ring: #62a8ff;
+
+  --header-bg: rgba(19, 21, 24, 0.8);
+  --sticky-bg: rgba(19, 21, 24, 0.92);
+  --backdrop: rgba(5, 7, 9, 0.62);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 10px 28px -8px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-3: 0 30px 80px -12px rgba(0, 0, 0, 0.7);
+  --indicator: #343a42;
+
+  --radius-lg: 18px;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+  --radius-pill: 999px;
+
+  --font-ui:
+    'Onest Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Motion. Springs come from linear() where supported (see below). */
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 360ms;
+  --dur-4: 520ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.55, 0, 0.75, 0.2);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: cubic-bezier(0.2, 0.9, 0.25, 1.15);
+  --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --header-h: 60px;
+  --tabs-h: 48px;
+  --page-max: 1320px;
+  --gutter: 16px;
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* Bouncy: ~10% overshoot, settles quickly. */
+    --spring: linear(
+      0,
+      0.009,
+      0.035 2.1%,
+      0.141 4.4%,
+      0.723 12.9%,
+      0.938 16.7%,
+      1.017 19.4%,
+      1.067,
+      1.099 24.3%,
+      1.108 26%,
+      1.103,
+      1.085 30.4%,
+      1.019 36.6%,
+      0.994 41%,
+      0.989 43.9%,
+      0.993 49.6%,
+      1.001 60.7%,
+      1
+    );
+    /* Critically damped-ish: tiny overshoot, for large surfaces. */
+    --spring-soft: linear(
+      0,
+      0.012,
+      0.049 2.4%,
+      0.199 5.2%,
+      0.6 11.2%,
+      0.8 15.2%,
+      0.906 19%,
+      0.97 23.3%,
+      1.004 28.4%,
+      1.018 34.3%,
+      1.016 42.7%,
+      1.004 59%,
+      1
+    );
+  }
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-3: #e7eaef;
+  --border: #e3e6eb;
+  --border-strong: #c7cdd5;
+  --text: #13161b;
+  --text-muted: #525a66;
+  --text-faint: #69717d;
+
+  --accent: #0a63d8;
+  --accent-solid: #0a63d8;
+  --accent-solid-hover: #0856bf;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(10, 99, 216, 0.09);
+
+  --apple: #1a7cf0;
+  --apple-text: #0a64cf;
+  --apple-solid: #0a64cf;
+  --apple-soft: rgba(26, 124, 240, 0.09);
+  --google: #1e9e4f;
+  --google-text: #137333;
+  --google-solid: #137333;
+  --google-soft: rgba(30, 158, 79, 0.1);
+  --windows: #0891b2;
+  --windows-text: #0e7490;
+  --windows-solid: #0e7490;
+  --windows-soft: rgba(8, 145, 178, 0.1);
+  --mac: #ea7a12;
+  --mac-text: #b45309;
+  --mac-solid: #b45309;
+  --mac-soft: rgba(234, 122, 18, 0.1);
+  --chart-apple: #1a7cf0;
+  --chart-google: #1e9e4f;
+  --chart-windows: #0891b2;
+  --chart-mac: #d4660a;
+  --chart-grid: #dde1e7;
+  --fresh: #7a3ff0;
+  --fresh-soft: rgba(122, 63, 240, 0.1);
+
+  --ok: #13803d;
+  --warn: #9a5800;
+  --danger: #c32839;
+  --ok-soft: rgba(19, 128, 61, 0.09);
+  --warn-soft: rgba(154, 88, 0, 0.1);
+  --danger-soft: rgba(195, 40, 57, 0.08);
+
+  --star: #f0a800;
+  --spark-1: #ffb800;
+  --spark-2: #ff7a1a;
+  --focus: #0a63d8;
+  --logo-ring: #0a63d8;
+
+  --header-bg: rgba(245, 246, 248, 0.82);
+  --sticky-bg: rgba(245, 246, 248, 0.94);
+  --backdrop: rgba(20, 24, 30, 0.38);
+  --shadow-1: 0 1px 2px rgba(20, 24, 30, 0.08);
+  --shadow-2: 0 12px 30px -10px rgba(20, 24, 30, 0.18), 0 2px 6px rgba(20, 24, 30, 0.06);
+  --shadow-3: 0 30px 80px -16px rgba(20, 24, 30, 0.3);
+  --indicator: #ffffff;
+}
+
+[data-theme='ms-paint'] {
+  color-scheme: light;
+
+  --bg: #c0c0c0;
+  --surface: #ffffff;
+  --surface-2: #dfdfdf;
+  --surface-3: #d0d0d0;
+  --border: #808080;
+  --border-strong: #000000;
+  --text: #000000;
+  --text-muted: #2a2a2a;
+  --text-faint: #404040;
+
+  --accent: #000080;
+  --accent-solid: #000080;
+  --accent-solid-hover: #0000a8;
+  --on-accent: #ffffff;
+  --accent-soft: #c8d4f0;
+
+  --apple: #0000ff;
+  --apple-text: #0000c8;
+  --apple-solid: #0000c8;
+  --apple-soft: #dde3ff;
+  --google: #008000;
+  --google-text: #006000;
+  --google-solid: #006000;
+  --google-soft: #d8efd8;
+  --windows: #008080;
+  --windows-text: #006060;
+  --windows-solid: #006060;
+  --windows-soft: #d0f0f0;
+  --mac: #c06000;
+  --mac-text: #904800;
+  --mac-solid: #904800;
+  --mac-soft: #f8e0c8;
+  --chart-apple: #0000ff;
+  --chart-google: #008000;
+  --chart-windows: #0088c0;
+  --chart-mac: #c06000;
+  --chart-grid: #c0c0c0;
+  --fresh: #800080;
+  --fresh-soft: #f0d8f0;
+
+  --ok: #006400;
+  --warn: #7c4a00;
+  --danger: #a40000;
+  --ok-soft: #d8ecd8;
+  --warn-soft: #f4e6c8;
+  --danger-soft: #f5d8d8;
+
+  --star: #c08000;
+  --spark-1: #ffff00;
+  --spark-2: #ff0000;
+  --focus: #000080;
+  --logo-ring: #000080;
+
+  --header-bg: #c0c0c0;
+  --sticky-bg: #c0c0c0;
+  --backdrop: rgba(0, 0, 0, 0.35);
+  --shadow-1: none;
+  --shadow-2: 4px 4px 0 #000000;
+  --shadow-3: 6px 6px 0 rgba(0, 0, 0, 0.55);
+  --indicator: #ffffff;
+
+  --radius-lg: 0px;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-xs: 0px;
+  --radius-pill: 0px;
+
+  --font-ui: Tahoma, 'MS Sans Serif', 'Segoe UI', Geneva, Verdana, sans-serif;
+  --font-mono: 'Lucida Console', 'Courier New', ui-monospace, monospace;
+
+  /* Everything moves in chunky frames here. */
+  --ease-out: steps(4, end);
+  --ease-in: steps(3, end);
+  --ease-in-out: steps(4, end);
+  --spring: steps(5, end);
+  --spring-soft: steps(6, end);
+
+  --bevel-raised:
+    inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #dfdfdf;
+  --bevel-pressed:
+    inset -1px -1px 0 #ffffff, inset 1px 1px 0 #0a0a0a, inset -2px -2px 0 #dfdfdf,
+    inset 2px 2px 0 #808080;
+  --bevel-sunken:
+    inset -1px -1px 0 #ffffff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf,
+    inset 2px 2px 0 #0a0a0a;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --page-max: 1520px;
+  }
+}
